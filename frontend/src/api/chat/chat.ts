@@ -10,4 +10,8 @@ export const ChatApi = {
     const res = await apiClient.get<ChatResponse>(`/chat/history/${sessionId}`)
     return res.data
   },
+  latest: async (dbId: number) => {
+    const res = await apiClient.get<ChatResponse>(`/chat/latest`, { params: { dbId } })
+    return res.data
+  },
 }

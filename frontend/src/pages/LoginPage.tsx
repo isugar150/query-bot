@@ -15,6 +15,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthApi } from '../api/auth/auth'
 import type { AuthResponse } from '../types'
+import { extractErrorMessage } from '../utils/error'
 
 type Props = {
   onAuth: (auth: AuthResponse) => void
@@ -34,8 +35,8 @@ export function LoginPage({ onAuth }: Props) {
       onAuth(res)
       toast({ title: '로그인 성공', status: 'success' })
       navigate('/')
-    } catch (err: any) {
-      toast({ title: '로그인 실패', description: err?.response?.data ?? '아이디/비밀번호를 확인하세요.', status: 'error' })
+    } catch (err: unknown) {
+      toast({ title: '로그인 실패', description: extractErrorMessage(err) || '아이디/비밀번호를 확인하세요.', status: 'error' })
     } finally {
       setLoading(false)
     }

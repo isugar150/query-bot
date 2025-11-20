@@ -29,15 +29,17 @@ import { ChatApi } from '../api/chat/chat'
 import { DbApi } from '../api/db/db'
 import { useAuthStore } from '../store/auth'
 import type { ChatMessage, DbConnectionRequest, DbSummary, DbTestResponse } from '../types'
+import { ResultModal } from '../components/ResultModal'
+import { extractErrorMessage } from '../utils/error'
 
 const emptyDbForm: DbConnectionRequest = {
-  name: '신규 데이터베이스',
+  name: '',
   dbType: 'POSTGRESQL',
   host: 'localhost',
-  port: 5432,
-  databaseName: 'app',
-  username: 'postgres',
-  password: 'postgres',
+  port: undefined,
+  databaseName: '',
+  username: '',
+  password: '',
 }
 
 type Props = {
@@ -59,6 +61,14 @@ export function ChatPage({ user }: Props) {
   const [dbTesting, setDbTesting] = useState(false)
   const [dbTestResult, setDbTestResult] = useState<DbTestResponse | null>(null)
   const [dbSaving, setDbSaving] = useState(false)
+  const [dbRefreshing, setDbRefreshing] = useState(false)
+  const [execLoading, setExecLoading] = useState(false)
+  const [execResult, setExecResult] = useState<{ columns: string[]; rows: (string | number | boolean | null)[][] } | null>(null)
+  const {
+    isOpen: isResultOpen,
+    onOpen: openResult,
+    onClose: closeResult,
+  } = useDisclosure()
 
   const selectedDbName = useMemo(() => databases.find((d) => d.id === selectedDb)?.name, [databases, selectedDb])
 
@@ -68,14 +78,31 @@ export function ChatPage({ user }: Props) {
         const res = await DbApi.list()
         setDatabases(res)
         if (!selectedDb && res.length > 0) {
-          setSelectedDb(res[0].id)
+          const first = res[0].id
+          setSelectedDb(first)
+          await loadHistory(first)
         }
-      } catch (err: any) {
-        toast({ title: 'DB 목록을 불러오지 못했습니다', description: err?.response?.data?.message ?? err.message, status: 'error' })
+      } catch (err: unknown) {
+        toast({ title: 'DB 목록을 불러오지 못했습니다', description: extractErrorMessage(err), status: 'error' })
       }
     }
     fetchDbs()
   }, [])
+
+  const loadHistory = async (dbId: number) => {
+    try {
+      const res = await ChatApi.latest(dbId)
+      setSessionId(res.sessionId)
+      setMessages(res.history)
+    } catch (err: unknown) {
+      setMessages([])
+      setSessionId(undefined)
+      const message = extractErrorMessage(err)
+      if (message && !/404/i.test(message)) {
+        toast({ title: '대화 불러오기 실패', description: message, status: 'error' })
+      }
+    }
+  }
 
   const handleSend = async () => {
     if (!input.trim() || !selectedDb) {
@@ -87,18 +114,38 @@ export function ChatPage({ user }: Props) {
       toast({ title: '스키마 수집 중입니다.', description: '스키마가 준비될 때까지 잠시만 기다려주세요.', status: 'info' })
       return
     }
-    const optimistic: ChatMessage = { role: 'USER', content: input, createdAt: new Date().toISOString() }
-    setMessages((prev) => [...prev, optimistic])
     setSending(true)
     try {
       const res = await ChatApi.ask({ dbId: selectedDb, message: input, sessionId })
       setMessages(res.history)
       setSessionId(res.sessionId)
       setInput('')
-    } catch (err: any) {
-      toast({ title: '질문 전송 실패', description: err?.response?.data?.message ?? err.message, status: 'error' })
+    } catch (err: unknown) {
+      toast({ title: '질문 전송 실패', description: extractErrorMessage(err), status: 'error' })
     } finally {
       setSending(false)
+    }
+  }
+
+  const handleExecute = async (sql: string) => {
+    if (!selectedDb) {
+      toast({ title: 'DB를 먼저 선택하세요.', status: 'warning' })
+      return
+    }
+    const isSelect = /^\s*select\b/i.test(sql)
+    if (!isSelect) {
+      toast({ title: 'SELECT 쿼리만 실행할 수 있습니다.', status: 'warning' })
+      return
+    }
+    setExecLoading(true)
+    try {
+      const res = await DbApi.execute({ dbId: selectedDb, sql })
+      setExecResult(res)
+      openResult()
+    } catch (err: unknown) {
+      toast({ title: '쿼리 실행 실패', description: extractErrorMessage(err), status: 'error' })
+    } finally {
+      setExecLoading(false)
     }
   }
 
@@ -116,8 +163,8 @@ export function ChatPage({ user }: Props) {
       const res = await DbApi.testConnection(dbForm)
       setDbTestResult(res)
       toast({ title: res.success ? 'DB 연결 성공' : 'DB 연결 실패', description: res.message, status: res.success ? 'success' : 'error' })
-    } catch (err: any) {
-      toast({ title: '테스트 실패', description: err?.response?.data?.message ?? err.message, status: 'error' })
+    } catch (err: unknown) {
+      toast({ title: '테스트 실패', description: extractErrorMessage(err), status: 'error' })
     } finally {
       setDbTesting(false)
     }
@@ -133,8 +180,8 @@ export function ChatPage({ user }: Props) {
       setDbTestResult(null)
       onClose()
       toast({ title: 'DB 등록 완료', status: 'success' })
-    } catch (err: any) {
-      toast({ title: 'DB 저장 실패', description: err?.response?.data?.message ?? err.message, status: 'error' })
+    } catch (err: unknown) {
+      toast({ title: 'DB 저장 실패', description: extractErrorMessage(err), status: 'error' })
     } finally {
       setDbSaving(false)
     }
@@ -158,8 +205,26 @@ export function ChatPage({ user }: Props) {
       setSessionId(undefined)
       setMessages([])
       toast({ title: 'DB 삭제 완료', status: 'success' })
-    } catch (err: any) {
-      toast({ title: 'DB 삭제 실패', description: err?.response?.data?.message ?? err.message, status: 'error' })
+    } catch (err: unknown) {
+      toast({ title: 'DB 삭제 실패', description: extractErrorMessage(err), status: 'error' })
+    }
+  }
+
+  const handleDbRefresh = async () => {
+    if (!selectedDb) {
+      toast({ title: '갱신할 DB를 선택하세요.', status: 'warning' })
+      return
+    }
+    setDbRefreshing(true)
+    try {
+      const res = await DbApi.refresh(selectedDb)
+      setDatabases((prev) => prev.map((db) => (db.id === res.id ? res : db)))
+      toast({ title: 'DB 스키마 갱신 완료', status: 'success' })
+      await loadHistory(res.id)
+    } catch (err: unknown) {
+      toast({ title: '갱신 실패', description: extractErrorMessage(err), status: 'error' })
+    } finally {
+      setDbRefreshing(false)
     }
   }
 
@@ -167,8 +232,8 @@ export function ChatPage({ user }: Props) {
     <Stack spacing={6}>
       <Flex justify="space-between" align="center">
         <Stack spacing={2}>
-          <Heading size="lg">SQL Query Bot</Heading>
-          <Text color="gray.300">스키마를 이해하는 AI가 안전하게 SELECT 쿼리를 제안합니다.</Text>
+          <Heading size="lg">Jm's SQL Query Bot</Heading>
+          <Text color="gray.300">데이터베이스 구조를 이해하는 AI가 쿼리를 작성하는 봇</Text>
         </Stack>
         <HStack spacing={3}>
           <Tag size="lg" variant="subtle" colorScheme="purple">
@@ -182,11 +247,19 @@ export function ChatPage({ user }: Props) {
 
       <Card bg="whiteAlpha.50" borderColor="whiteAlpha.200" borderWidth="1px">
         <CardBody>
-          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr auto auto auto' }} gap={4} alignItems="center">
+          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr auto auto auto auto' }} gap={4} alignItems="center">
             <GridItem>
               <FormControl>
                 <FormLabel color="gray.200">데이터베이스 선택</FormLabel>
-                <Select value={selectedDb ?? ''} onChange={(e) => setSelectedDb(Number(e.target.value))} placeholder="선택하세요">
+                <Select
+                  value={selectedDb ?? ''}
+                  onChange={async (e) => {
+                    const id = Number(e.target.value)
+                    setSelectedDb(id)
+                    await loadHistory(id)
+                  }}
+                  placeholder="선택하세요"
+                >
                   {databases.map((db) => (
                     <option key={db.id} value={db.id}>
                       {db.name} ({db.dbType})
@@ -215,6 +288,11 @@ export function ChatPage({ user }: Props) {
             <GridItem>
               <Button colorScheme="red" variant="outline" onClick={handleDbDelete} isDisabled={!selectedDb}>
                 선택 DB 삭제
+              </Button>
+            </GridItem>
+            <GridItem>
+              <Button variant="solid" onClick={handleDbRefresh} isLoading={dbRefreshing} isDisabled={!selectedDb}>
+                DB 정보 갱신
               </Button>
             </GridItem>
           </Grid>
@@ -290,25 +368,42 @@ export function ChatPage({ user }: Props) {
                 </Box>
                 <Stack spacing={4} maxH="50vh" overflowY="auto" pr={2}>
                   {messages.length === 0 && <Text color="gray.400">대화를 시작해보세요. 이전 세션은 새 메시지 이후 표시됩니다.</Text>}
-                  {messages.map((msg, idx) => (
-                    <Box key={idx} bg={msg.role === 'USER' ? 'teal.900' : 'gray.800'} borderRadius="md" p={3} borderWidth="1px" borderColor="whiteAlpha.200">
-                      <HStack justify="space-between" mb={2}>
-                        <Badge colorScheme={msg.role === 'USER' ? 'teal' : 'purple'}>{msg.role === 'USER' ? '나' : 'AI'}</Badge>
-                        <Text fontSize="xs" color="gray.400">
-                          {formatDate(msg.createdAt)}
+                  {messages.map((msg, idx) => {
+                    const isAssistant = msg.role === 'ASSISTANT'
+                    const isSelect = /^\s*select\b/i.test(msg.content)
+                    return (
+                      <Box key={idx} bg={msg.role === 'USER' ? 'teal.900' : 'gray.800'} borderRadius="md" p={3} borderWidth="1px" borderColor="whiteAlpha.200">
+                        <HStack justify="space-between" mb={2}>
+                          <Badge colorScheme={msg.role === 'USER' ? 'teal' : 'purple'}>{msg.role === 'USER' ? '나' : 'AI'}</Badge>
+                          <HStack spacing={2}>
+                            {isAssistant && isSelect && (
+                              <Button size="xs" variant="outline" isLoading={execLoading} onClick={() => handleExecute(msg.content)}>
+                                실행 (최대 100건)
+                              </Button>
+                            )}
+                            <Text fontSize="xs" color="gray.400">
+                              {formatDate(msg.createdAt)}
+                            </Text>
+                          </HStack>
+                        </HStack>
+                        <Text whiteSpace="pre-wrap" fontFamily={isAssistant ? 'mono' : 'body'}>
+                          {msg.content}
                         </Text>
-                      </HStack>
-                      <Text whiteSpace="pre-wrap" fontFamily={msg.role === 'ASSISTANT' ? 'mono' : 'body'}>
-                        {msg.content}
-                      </Text>
-                    </Box>
-                  ))}
+                      </Box>
+                    )
+                  })}
                 </Stack>
                 <Divider />
                 <Textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="예: 지난주 신규 가입자 수를 반환하는 SELECT 쿼리를 알려줘"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSend()
+                    }
+                  }}
+                  placeholder="예: 지난주 신규 가입자 수를 반환하는 쿼리를 알려줘"
                   bg="blackAlpha.500"
                   borderColor="whiteAlpha.200"
                   minH="120px"
@@ -328,11 +423,19 @@ export function ChatPage({ user }: Props) {
                 <Text color="gray.300">1) DB를 선택하고, 2) 질문을 입력하세요. 동일 세션에서 맥락이 유지됩니다.</Text>
                 <Text color="gray.300">쿼리가 모호하면 AI가 한국어로 추가 정보를 요청합니다.</Text>
                 <Text color="gray.300">명확한 경우 오류 없이 실행 가능한 SELECT 쿼리만 돌려줍니다.</Text>
+                <Text color="gray.300">AI가 제안한 SELECT는 실행 버튼으로 바로 테스트할 수 있으며 최대 100건까지 조회합니다.</Text>
               </Stack>
             </CardBody>
           </Card>
         </GridItem>
       </Grid>
+
+      <ResultModal
+        isOpen={isResultOpen}
+        onClose={closeResult}
+        columns={execResult?.columns ?? []}
+        rows={execResult?.rows ?? []}
+      />
     </Stack>
   )
 }

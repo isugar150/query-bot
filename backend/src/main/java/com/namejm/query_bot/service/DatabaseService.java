@@ -8,6 +8,7 @@ import com.namejm.query_bot.dto.SchemaOverview;
 import com.namejm.query_bot.repository.DatabaseConnectionRepository;
 import com.namejm.query_bot.repository.ChatMessageRepository;
 import com.namejm.query_bot.repository.ChatSessionRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -62,7 +63,7 @@ public class DatabaseService {
         entity.setPassword(request.password());
         entity.setSchemaJson(objectMapper.writeValueAsString(schema));
         entity.setSchemaReady(true);
-        entity.setSchemaUpdatedAt(java.time.LocalDateTime.now());
+        entity.setSchemaUpdatedAt(LocalDateTime.now());
         return repository.save(entity);
     }
 
@@ -80,5 +81,28 @@ public class DatabaseService {
             chatSessionRepository.deleteAll(sessions);
         }
         repository.delete(connection);
+    }
+
+    @Transactional
+    public DbSummary refresh(Long id) throws Exception {
+        DatabaseConnection db = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
+
+        DbConnectionRequest req = new DbConnectionRequest(
+                db.getName(),
+                db.getDbType(),
+                db.getHost(),
+                db.getPort(),
+                db.getDatabaseName(),
+                db.getUsername(),
+                db.getPassword()
+        );
+        SchemaOverview schema = metadataService.fetchAndThrow(req);
+        db.setSchemaJson(objectMapper.writeValueAsString(schema));
+        db.setSchemaReady(true);
+        db.setSchemaUpdatedAt(LocalDateTime.now());
+        repository.save(db);
+
+        return new DbSummary(db.getId(), db.getName(), db.getDbType(), db.getHost(), db.getPort(), db.getDatabaseName(), db.isSchemaReady());
     }
 }

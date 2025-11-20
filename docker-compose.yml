@@ -5,7 +5,11 @@ services:
     ports:
       - "5213:5213"
     environment:
-      - JWT_SECRET=change-me
+      - JWT_SECRET=${JWT_SECRET:-change-me}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - APP_DATA_DIR=${APP_DATA_DIR:-/app/data}
+      - SERVER_PORT=${SERVER_PORT:-8080}
+    env_file:
+      - .env
     volumes:
       - ./data:/app/data

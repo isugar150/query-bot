@@ -21,7 +21,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
-    if (error.response?.status === 401 && original && !original._retry) {
+    if (original && !original._retry && (error.response?.status === 401 || error.response?.status === 403)) {
       original._retry = true
       const refreshed = await refreshTokens()
       if (refreshed) {

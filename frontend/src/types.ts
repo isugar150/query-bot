@@ -19,7 +19,7 @@ export type DbConnectionRequest = {
   name: string
   dbType: DatabaseType
   host: string
-  port?: number
+  port?: number | undefined
   databaseName: string
   username: string
   password: string
@@ -39,11 +39,13 @@ export type ColumnOverview = {
   name: string
   type: string
   nullable: boolean
+  comment?: string | null
 }
 
 export type TableOverview = {
   name: string
   columns: ColumnOverview[]
+  comment?: string | null
 }
 
 export type SchemaOverview = {
@@ -67,4 +69,9 @@ export type ChatResponse = {
   sessionId: number
   reply: string
   history: ChatMessage[]
+}
+
+export type ExecuteResponse = {
+  columns: string[]
+  rows: (string | number | boolean | null)[][]
 }

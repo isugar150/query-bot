@@ -23,6 +23,7 @@ import { useState } from 'react'
 import { DbApi } from '../api/db/db'
 import { InitApi } from '../api/init/init'
 import type { AuthResponse, DbConnectionRequest, DbTestResponse } from '../types'
+import { extractErrorMessage } from '../utils/error'
 
 type Props = {
   onComplete: (auth: AuthResponse) => void
@@ -59,8 +60,8 @@ export function OnboardingPage({ onComplete }: Props) {
       } else {
         toast({ title: '연결 실패', description: result.message, status: 'error' })
       }
-    } catch (err: any) {
-      toast({ title: '테스트 실패', description: err?.response?.data?.message ?? err.message, status: 'error' })
+    } catch (err: unknown) {
+      toast({ title: '테스트 실패', description: extractErrorMessage(err), status: 'error' })
     } finally {
       setTesting(false)
     }
@@ -73,8 +74,8 @@ export function OnboardingPage({ onComplete }: Props) {
       const res = await InitApi.setup(payload)
       onComplete(res.auth)
       toast({ title: '초기 설정 완료', status: 'success' })
-    } catch (err: any) {
-      toast({ title: '설정 실패', description: err?.response?.data?.message ?? err.message, status: 'error' })
+    } catch (err: unknown) {
+      toast({ title: '설정 실패', description: extractErrorMessage(err), status: 'error' })
     } finally {
       setSaving(false)
     }

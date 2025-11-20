@@ -3,6 +3,7 @@ package com.namejm.query_bot.dto;
 public record ColumnOverview(
         String name,
         String type,
-        boolean nullable
+        boolean nullable,
+        String comment
 ) {
 }

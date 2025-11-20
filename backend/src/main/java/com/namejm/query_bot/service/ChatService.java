@@ -12,16 +12,17 @@ import com.namejm.query_bot.dto.SchemaOverview;
 import com.namejm.query_bot.model.MessageRole;
 import com.namejm.query_bot.repository.ChatMessageRepository;
 import com.namejm.query_bot.repository.ChatSessionRepository;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
 @Service
@@ -47,6 +48,7 @@ public class ChatService {
                 .build();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public ChatResponse ask(ChatRequest request) throws Exception {
         DatabaseConnection database = databaseService.findById(request.dbId())
                 .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
@@ -57,19 +59,23 @@ public class ChatService {
         ChatSession session = resolveSession(request, database);
         SchemaOverview schema = loadSchema(database);
 
+        List<ChatMessage> priorHistory = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
+
         ChatMessage userMessage = new ChatMessage();
         userMessage.setSession(session);
         userMessage.setRole(MessageRole.USER);
         userMessage.setContent(request.message());
-        chatMessageRepository.save(userMessage);
 
-        List<ChatMessage> history = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
-        String reply = generateAnswer(history, schema);
+        List<ChatMessage> promptHistory = new ArrayList<>(priorHistory);
+        promptHistory.add(userMessage);
+        String reply = generateAnswer(promptHistory, schema);
 
         ChatMessage assistantMessage = new ChatMessage();
         assistantMessage.setSession(session);
         assistantMessage.setRole(MessageRole.ASSISTANT);
         assistantMessage.setContent(reply);
+
+        chatMessageRepository.save(userMessage);
         chatMessageRepository.save(assistantMessage);
 
         List<ChatMessageDto> historyDto = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session).stream()
@@ -91,6 +97,16 @@ public class ChatService {
         return chatMessageRepository.findBySessionOrderByCreatedAtAsc(session).stream()
                 .map(msg -> new ChatMessageDto(msg.getRole(), msg.getContent(), msg.getCreatedAt()))
                 .toList();
+    }
+
+    public Optional<ChatResponse> latestForDatabase(Long dbId) {
+        return databaseService.findById(dbId)
+                .flatMap(chatSessionRepository::findFirstByDatabaseConnectionOrderByCreatedAtDesc)
+                .map(session -> new ChatResponse(
+                        session.getId(),
+                        "",
+                        historyForSession(session)
+                ));
     }
 
     private ChatSession resolveSession(ChatRequest request, DatabaseConnection database) {
@@ -141,7 +157,6 @@ public class ChatService {
                 .headers(headers -> headers.setBearerAuth(appProperties.getOpenai().getApiKey()))
                 .body(Map.of(
                         "model", appProperties.getOpenai().getModel(),
-                        "temperature", 0.2,
                         "messages", messages
                 ))
                 .retrieve()
@@ -160,9 +175,19 @@ public class ChatService {
                 .append("When the query is unambiguous and valid, respond with the SQL only.\n\n");
         builder.append("Database: ").append(schema.database()).append("\n");
         for (var table : schema.tables()) {
-            builder.append("- ").append(table.name()).append(" (");
+            builder.append("- ").append(table.name());
+            if (table.comment() != null && !table.comment().isBlank()) {
+                builder.append(" -- ").append(table.comment());
+            }
+            builder.append(" (");
             List<String> columns = table.columns().stream()
-                    .map(col -> col.name() + " " + col.type())
+                    .map(col -> {
+                        String base = col.name() + " " + col.type() + (col.nullable() ? "" : " NOT NULL");
+                        if (col.comment() != null && !col.comment().isBlank()) {
+                            return base + " -- " + col.comment();
+                        }
+                        return base;
+                    })
                     .toList();
             builder.append(String.join(", ", columns)).append(")\n");
         }

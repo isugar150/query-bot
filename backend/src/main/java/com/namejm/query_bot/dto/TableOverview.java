@@ -4,6 +4,7 @@ import java.util.List;
 
 public record TableOverview(
         String name,
-        List<ColumnOverview> columns
+        List<ColumnOverview> columns,
+        String comment
 ) {
 }

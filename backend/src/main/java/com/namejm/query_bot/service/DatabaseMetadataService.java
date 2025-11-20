@@ -43,6 +43,9 @@ public class DatabaseMetadataService {
         Properties properties = new Properties();
         properties.setProperty("user", request.username());
         properties.setProperty("password", request.password());
+        // Enable schema comments retrieval where supported
+        properties.setProperty("remarksReporting", "true");
+        properties.setProperty("useInformationSchema", "true");
         return DriverManager.getConnection(jdbcUrl, properties);
     }
 
@@ -58,16 +61,18 @@ public class DatabaseMetadataService {
         try (ResultSet tableRs = metaData.getTables(null, null, "%", new String[]{"TABLE"})) {
             while (tableRs.next()) {
                 String tableName = tableRs.getString("TABLE_NAME");
+                String tableComment = tableRs.getString("REMARKS");
                 List<ColumnOverview> columns = new ArrayList<>();
                 try (ResultSet columnRs = metaData.getColumns(null, null, tableName, "%")) {
                     while (columnRs.next()) {
                         String name = columnRs.getString("COLUMN_NAME");
                         String type = columnRs.getString("TYPE_NAME");
                         boolean nullable = "YES".equalsIgnoreCase(columnRs.getString("IS_NULLABLE"));
-                        columns.add(new ColumnOverview(name, type, nullable));
+                        String comment = columnRs.getString("REMARKS");
+                        columns.add(new ColumnOverview(name, type, nullable, comment));
                     }
                 }
-                tables.add(new TableOverview(tableName, columns));
+                tables.add(new TableOverview(tableName, columns, tableComment));
             }
         }
         return new SchemaOverview(databaseName, tables);
