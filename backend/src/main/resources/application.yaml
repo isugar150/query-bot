@@ -1,3 +1,28 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: query-bot
+  datasource:
+    url: jdbc:sqlite:./data/querybot.db
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.community.dialect.SQLiteDialect
+    open-in-view: false
+  jackson:
+    serialization:
+      indent_output: true
+
+app:
+  security:
+    jwt-secret: ${JWT_SECRET:dev-secret-change-me}
+    access-token-minutes: 30
+    refresh-token-days: 7
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model: ${OPENAI_MODEL:gpt-4o-mini}

@@ -1,0 +1,11 @@
+version: '3.9'
+services:
+  query-bot:
+    build: .
+    ports:
+      - "5213:5213"
+    environment:
+      - JWT_SECRET=change-me
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - ./data:/app/data
