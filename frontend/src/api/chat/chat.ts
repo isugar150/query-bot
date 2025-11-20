@@ -1,5 +1,5 @@
 import { apiClient } from '../../hook/apiClient'
-import type { ChatResponse } from '../../types'
+import type { ChatResponse, ChatSession } from '../../types'
 
 export const ChatApi = {
   ask: async (payload: { dbId: number; message: string; sessionId?: number }) => {
@@ -12,6 +12,14 @@ export const ChatApi = {
   },
   latest: async (dbId: number) => {
     const res = await apiClient.get<ChatResponse>(`/chat/latest`, { params: { dbId } })
+    return res.data
+  },
+  sessions: async (dbId: number) => {
+    const res = await apiClient.get<ChatSession[]>(`/chat/sessions`, { params: { dbId } })
+    return res.data
+  },
+  createSession: async (payload: { dbId: number; title: string }) => {
+    const res = await apiClient.post<ChatSession>('/chat/session', payload)
     return res.data
   },
 }

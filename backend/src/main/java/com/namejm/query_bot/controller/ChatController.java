@@ -2,6 +2,8 @@ package com.namejm.query_bot.controller;
 
 import com.namejm.query_bot.dto.ChatRequest;
 import com.namejm.query_bot.dto.ChatResponse;
+import com.namejm.query_bot.dto.ChatSessionSummary;
+import com.namejm.query_bot.dto.CreateSessionRequest;
 import com.namejm.query_bot.service.ChatService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -40,5 +42,15 @@ public class ChatController {
         return chatService.latestForDatabase(dbId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/sessions")
+    public ResponseEntity<?> sessions(@RequestParam("dbId") Long dbId) {
+        return ResponseEntity.ok(chatService.sessions(dbId));
+    }
+
+    @PostMapping("/session")
+    public ChatSessionSummary create(@Valid @RequestBody CreateSessionRequest request) {
+        return chatService.createSession(request.dbId(), request.title());
     }
 }

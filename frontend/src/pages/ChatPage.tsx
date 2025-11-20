@@ -28,7 +28,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChatApi } from '../api/chat/chat'
 import { DbApi } from '../api/db/db'
 import { useAuthStore } from '../store/auth'
-import type { ChatMessage, DbConnectionRequest, DbSummary, DbTestResponse } from '../types'
+import type { ChatMessage, ChatSession, DbConnectionRequest, DbSummary, DbTestResponse } from '../types'
 import { ResultModal } from '../components/ResultModal'
 import { extractErrorMessage } from '../utils/error'
 
@@ -51,6 +51,7 @@ export function ChatPage({ user }: Props) {
   const logout = useAuthStore((state) => state.clear)
   const [databases, setDatabases] = useState<DbSummary[]>([])
   const [selectedDb, setSelectedDb] = useState<number | undefined>()
+  const [sessions, setSessions] = useState<ChatSession[]>([])
   const [sessionId, setSessionId] = useState<number | undefined>()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
@@ -80,7 +81,7 @@ export function ChatPage({ user }: Props) {
         if (!selectedDb && res.length > 0) {
           const first = res[0].id
           setSelectedDb(first)
-          await loadHistory(first)
+          await loadSessions(first)
         }
       } catch (err: unknown) {
         toast({ title: 'DB 목록을 불러오지 못했습니다', description: extractErrorMessage(err), status: 'error' })
@@ -89,14 +90,32 @@ export function ChatPage({ user }: Props) {
     fetchDbs()
   }, [])
 
-  const loadHistory = async (dbId: number) => {
+  const loadSessions = async (dbId: number) => {
     try {
-      const res = await ChatApi.latest(dbId)
+      const res = await ChatApi.sessions(dbId)
+      setSessions(res)
+      if (res.length > 0) {
+        setSessionId(res[0].id)
+        await loadHistory(res[0].id)
+      } else {
+        setSessionId(undefined)
+        setMessages([])
+      }
+    } catch (err: unknown) {
+      setSessions([])
+      setSessionId(undefined)
+      setMessages([])
+      toast({ title: '세션 목록을 불러오지 못했습니다', description: extractErrorMessage(err), status: 'error' })
+    }
+  }
+
+  const loadHistory = async (session: number) => {
+    try {
+      const res = await ChatApi.history(session)
       setSessionId(res.sessionId)
       setMessages(res.history)
     } catch (err: unknown) {
       setMessages([])
-      setSessionId(undefined)
       const message = extractErrorMessage(err)
       if (message && !/404/i.test(message)) {
         toast({ title: '대화 불러오기 실패', description: message, status: 'error' })
@@ -247,7 +266,7 @@ export function ChatPage({ user }: Props) {
 
       <Card bg="whiteAlpha.50" borderColor="whiteAlpha.200" borderWidth="1px">
         <CardBody>
-          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr auto auto auto auto' }} gap={4} alignItems="center">
+          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr auto auto auto' }} gap={4} alignItems="center">
             <GridItem>
               <FormControl>
                 <FormLabel color="gray.200">데이터베이스 선택</FormLabel>
@@ -256,7 +275,11 @@ export function ChatPage({ user }: Props) {
                   onChange={async (e) => {
                     const id = Number(e.target.value)
                     setSelectedDb(id)
-                    await loadHistory(id)
+                    if(id !== 0) await loadSessions(id)
+                    else {
+                        setSessions([])
+                        setMessages([])
+                    }
                   }}
                   placeholder="선택하세요"
                 >
@@ -281,8 +304,8 @@ export function ChatPage({ user }: Props) {
               </Button>
             </GridItem>
             <GridItem>
-              <Button leftIcon={<FiRefreshCw />} variant="outline" onClick={newSession}>
-                새 대화
+              <Button variant="solid" onClick={handleDbRefresh} isLoading={dbRefreshing} isDisabled={!selectedDb}>
+                DB 정보 갱신
               </Button>
             </GridItem>
             <GridItem>
@@ -291,11 +314,54 @@ export function ChatPage({ user }: Props) {
               </Button>
             </GridItem>
             <GridItem>
-              <Button variant="solid" onClick={handleDbRefresh} isLoading={dbRefreshing} isDisabled={!selectedDb}>
-                DB 정보 갱신
-              </Button>
+              <FormControl>
+                <FormLabel color="gray.200">세션 선택</FormLabel>
+                <Select
+                  value={sessionId ?? ''}
+                  onChange={async (e) => {
+                    const sid = Number(e.target.value)
+                    setSessionId(sid)
+                    await loadHistory(sid)
+                  }}
+                  placeholder="세션을 선택하세요"
+                >
+                  {sessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
             </GridItem>
           </Grid>
+          <HStack mt={4} spacing={3} flexWrap="wrap">
+            <Button leftIcon={<FiRefreshCw />} variant="outline" onClick={newSession}>
+              새 대화
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!selectedDb) {
+                  toast({ title: 'DB를 먼저 선택하세요.', status: 'warning' })
+                  return
+                }
+                const title = window.prompt('새 세션 이름을 입력하세요', `새 세션 (${selectedDbName ?? ''})`)
+                if (!title) return
+                try {
+                  const created = await ChatApi.createSession({ dbId: selectedDb, title })
+                  setSessions((prev) => [created, ...prev])
+                  setSessionId(created.id)
+                  setMessages([])
+                  toast({ title: '세션이 생성되었습니다.', status: 'success' })
+                } catch (err: unknown) {
+                  toast({ title: '세션 생성 실패', description: extractErrorMessage(err), status: 'error' })
+                }
+              }}
+              isDisabled={!selectedDb}
+            >
+              새 세션 추가
+            </Button>
+          </HStack>
           {isOpen && (
             <Box mt={6} p={4} borderRadius="md" borderWidth="1px" borderColor="whiteAlpha.200" bg="blackAlpha.300">
               <HStack justify="space-between" mb={3}>

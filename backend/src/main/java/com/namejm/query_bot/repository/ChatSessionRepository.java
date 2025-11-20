@@ -9,4 +9,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
     List<ChatSession> findByDatabaseConnection(DatabaseConnection databaseConnection);
     Optional<ChatSession> findFirstByDatabaseConnectionOrderByCreatedAtDesc(DatabaseConnection databaseConnection);
+    List<ChatSession> findByDatabaseConnectionOrderByCreatedAtDesc(DatabaseConnection databaseConnection);
 }

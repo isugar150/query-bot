@@ -75,3 +75,10 @@ export type ExecuteResponse = {
   columns: string[]
   rows: (string | number | boolean | null)[][]
 }
+
+export type ChatSession = {
+  id: number
+  dbId: number
+  title: string
+  createdAt: string
+}

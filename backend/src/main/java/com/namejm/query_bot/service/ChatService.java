@@ -8,6 +8,7 @@ import com.namejm.query_bot.domain.DatabaseConnection;
 import com.namejm.query_bot.dto.ChatMessageDto;
 import com.namejm.query_bot.dto.ChatRequest;
 import com.namejm.query_bot.dto.ChatResponse;
+import com.namejm.query_bot.dto.ChatSessionSummary;
 import com.namejm.query_bot.dto.SchemaOverview;
 import com.namejm.query_bot.model.MessageRole;
 import com.namejm.query_bot.repository.ChatMessageRepository;
@@ -109,6 +110,21 @@ public class ChatService {
                 ));
     }
 
+    public List<ChatSessionSummary> sessions(Long dbId) {
+        DatabaseConnection db = databaseService.findById(dbId)
+                .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
+        return chatSessionRepository.findByDatabaseConnectionOrderByCreatedAtDesc(db).stream()
+                .map(session -> new ChatSessionSummary(session.getId(), db.getId(), session.getTitle(), session.getCreatedAt()))
+                .toList();
+    }
+
+    public ChatSessionSummary createSession(Long dbId, String title) {
+        DatabaseConnection db = databaseService.findById(dbId)
+                .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
+        ChatSession created = createSession(db, title);
+        return new ChatSessionSummary(created.getId(), dbId, created.getTitle(), created.getCreatedAt());
+    }
+
     private ChatSession resolveSession(ChatRequest request, DatabaseConnection database) {
         if (request.sessionId() != null) {
             Optional<ChatSession> existing = chatSessionRepository.findById(request.sessionId());
@@ -118,13 +134,31 @@ public class ChatService {
         }
         ChatSession session = new ChatSession();
         session.setDatabaseConnection(database);
-        session.setTitle(buildTitle(request.message(), database.getName()));
+        String title = request.sessionTitle() != null && !request.sessionTitle().isBlank()
+                ? safeTitle(request.sessionTitle(), database.getName())
+                : buildTitle(request.message(), database.getName());
+        session.setTitle(title);
+        return chatSessionRepository.save(session);
+    }
+
+    public ChatSession createSession(DatabaseConnection database, String title) {
+        ChatSession session = new ChatSession();
+        session.setDatabaseConnection(database);
+        session.setTitle(safeTitle(title, database.getName()));
         return chatSessionRepository.save(session);
     }
 
     private String buildTitle(String message, String dbName) {
         String clean = message.length() > 40 ? message.substring(0, 40) + "..." : message;
         return "[" + dbName + "] " + clean;
+    }
+
+    private String safeTitle(String raw, String dbName) {
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) {
+            return buildTitle("새 세션", dbName);
+        }
+        return trimmed.length() > 60 ? trimmed.substring(0, 60) + "..." : trimmed;
     }
 
     private SchemaOverview loadSchema(DatabaseConnection databaseConnection) throws Exception {

@@ -3,10 +3,8 @@ package com.namejm.query_bot.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record ChatRequest(
+public record CreateSessionRequest(
         @NotNull Long dbId,
-        Long sessionId,
-        @NotBlank String message,
-        String sessionTitle
+        @NotBlank String title
 ) {
 }
