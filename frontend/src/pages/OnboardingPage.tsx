@@ -49,6 +49,8 @@ export function OnboardingPage({ onComplete }: Props) {
   const [testResult, setTestResult] = useState<DbTestResponse | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const canStart = !!adminId && !!adminPw && (!includeDb || !!testResult?.success)
+
   const handleTest = async () => {
     setTesting(true)
     setTestResult(null)
@@ -81,7 +83,12 @@ export function OnboardingPage({ onComplete }: Props) {
     }
   }
 
-  const updateDb = (patch: Partial<DbConnectionRequest>) => setDbInfo({ ...dbInfo, ...patch })
+  const updateDb = (patch: Partial<DbConnectionRequest>) => {
+    setDbInfo({ ...dbInfo, ...patch })
+    if (includeDb) {
+      setTestResult(null)
+    }
+  }
 
   return (
     <Box maxW="6xl" mx="auto" py={10}>
@@ -118,7 +125,16 @@ export function OnboardingPage({ onComplete }: Props) {
               <CardHeader>
                 <HStack justify="space-between">
                   <Heading size="md">데이터베이스 연결</Heading>
-                  <Checkbox isChecked={includeDb} onChange={(e) => setIncludeDb(e.target.checked)}>
+                  <Checkbox
+                    isChecked={includeDb}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      setIncludeDb(checked)
+                      if (!checked) {
+                        setTestResult(null)
+                      }
+                    }}
+                  >
                     지금 연결
                   </Checkbox>
                 </HStack>
@@ -194,12 +210,9 @@ export function OnboardingPage({ onComplete }: Props) {
           </GridItem>
         </Grid>
         <Divider opacity={0.3} />
-        <HStack>
-          <Button size="lg" colorScheme="teal" onClick={handleSubmit} isLoading={saving} isDisabled={!adminId || !adminPw}>
-            시작하기
-          </Button>
-          <Text color="gray.300">설정은 SQLite에 저장되며 이후에도 수정할 수 있습니다.</Text>
-        </HStack>
+        <Button size="lg" colorScheme="teal" onClick={handleSubmit} isLoading={saving} isDisabled={!canStart}>
+          시작하기
+        </Button>
       </Stack>
     </Box>
   )
