@@ -2,6 +2,7 @@ import {
   Badge,
   Box,
   Button,
+  ButtonGroup,
   Card,
   CardBody,
   Divider,
@@ -22,241 +23,325 @@ import {
   useDisclosure,
   useToast,
   VStack,
-} from '@chakra-ui/react'
-import { FiArrowRight, FiPlus, FiRefreshCw } from 'react-icons/fi'
-import { useEffect, useMemo, useState } from 'react'
-import { ChatApi } from '../api/chat/chat'
-import { DbApi } from '../api/db/db'
-import { useAuthStore } from '../store/auth'
-import type { ChatMessage, ChatSession, DbConnectionRequest, DbSummary, DbTestResponse } from '../types'
-import { ResultModal } from '../components/ResultModal'
-import { extractErrorMessage } from '../utils/error'
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+} from "@chakra-ui/react";
+import { FiArrowRight, FiPlus, FiRefreshCw } from "react-icons/fi";
+import { LuChevronDown } from "react-icons/lu";
+import { useEffect, useState } from "react";
+import { ChatApi } from "../api/chat/chat";
+import { DbApi } from "../api/db/db";
+import { useAuthStore } from "../store/auth";
+import type {
+  ChatMessage,
+  ChatSession,
+  DbConnectionRequest,
+  DbSummary,
+  DbTestResponse,
+} from "../types";
+import { ResultModal } from "../components/ResultModal";
+import { extractErrorMessage } from "../utils/error";
 
 const emptyDbForm: DbConnectionRequest = {
-  name: '',
-  dbType: 'POSTGRESQL',
-  host: 'localhost',
+  name: "",
+  dbType: "POSTGRESQL",
+  host: "localhost",
   port: undefined,
-  databaseName: '',
-  username: '',
-  password: '',
-}
+  databaseName: "",
+  username: "",
+  password: "",
+};
 
 type Props = {
-  user?: string
-}
+  user?: string;
+};
 
 export function ChatPage({ user }: Props) {
-  const toast = useToast()
-  const logout = useAuthStore((state) => state.clear)
-  const [databases, setDatabases] = useState<DbSummary[]>([])
-  const [selectedDb, setSelectedDb] = useState<number | undefined>()
-  const [sessions, setSessions] = useState<ChatSession[]>([])
-  const [sessionId, setSessionId] = useState<number | undefined>()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
+  const toast = useToast();
+  const logout = useAuthStore((state) => state.clear);
+  const [databases, setDatabases] = useState<DbSummary[]>([]);
+  const [selectedDb, setSelectedDb] = useState<number | undefined>();
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sessionId, setSessionId] = useState<number | undefined>();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
 
-  const { isOpen, onToggle, onClose } = useDisclosure()
-  const [dbForm, setDbForm] = useState<DbConnectionRequest>(emptyDbForm)
-  const [dbTesting, setDbTesting] = useState(false)
-  const [dbTestResult, setDbTestResult] = useState<DbTestResponse | null>(null)
-  const [dbSaving, setDbSaving] = useState(false)
-  const [dbRefreshing, setDbRefreshing] = useState(false)
-  const [execLoading, setExecLoading] = useState(false)
-  const [execResult, setExecResult] = useState<{ columns: string[]; rows: (string | number | boolean | null)[][] } | null>(null)
+  const { isOpen, onToggle, onClose } = useDisclosure();
+  const [dbForm, setDbForm] = useState<DbConnectionRequest>(emptyDbForm);
+  const [dbTesting, setDbTesting] = useState(false);
+  const [dbTestResult, setDbTestResult] = useState<DbTestResponse | null>(null);
+  const [dbSaving, setDbSaving] = useState(false);
+  const [execLoading, setExecLoading] = useState(false);
+  const [execResult, setExecResult] = useState<{
+    columns: string[];
+    rows: (string | number | boolean | null)[][];
+  } | null>(null);
   const {
     isOpen: isResultOpen,
     onOpen: openResult,
     onClose: closeResult,
-  } = useDisclosure()
-
-  const selectedDbName = useMemo(() => databases.find((d) => d.id === selectedDb)?.name, [databases, selectedDb])
+  } = useDisclosure();
 
   useEffect(() => {
     const fetchDbs = async () => {
       try {
-        const res = await DbApi.list()
-        setDatabases(res)
+        const res = await DbApi.list();
+        setDatabases(res);
         if (!selectedDb && res.length > 0) {
-          const first = res[0].id
-          setSelectedDb(first)
-          await loadSessions(first)
+          const first = res[0].id;
+          setSelectedDb(first);
+          await loadSessions(first);
         }
       } catch (err: unknown) {
-        toast({ title: 'DB 목록을 불러오지 못했습니다', description: extractErrorMessage(err), status: 'error' })
+        toast({
+          title: "DB 목록을 불러오지 못했습니다",
+          description: extractErrorMessage(err),
+          status: "error",
+        });
       }
-    }
-    fetchDbs()
-  }, [])
+    };
+    fetchDbs();
+  }, []);
 
   const loadSessions = async (dbId: number) => {
     try {
-      const res = await ChatApi.sessions(dbId)
-      setSessions(res)
+      const res = await ChatApi.sessions(dbId);
+      setSessions(res);
       if (res.length > 0) {
-        setSessionId(res[0].id)
-        await loadHistory(res[0].id)
+        setSessionId(res[0].id);
+        await loadHistory(res[0].id);
       } else {
-        setSessionId(undefined)
-        setMessages([])
+        setSessionId(undefined);
+        setMessages([]);
       }
     } catch (err: unknown) {
-      setSessions([])
-      setSessionId(undefined)
-      setMessages([])
-      toast({ title: '세션 목록을 불러오지 못했습니다', description: extractErrorMessage(err), status: 'error' })
+      setSessions([]);
+      setSessionId(undefined);
+      setMessages([]);
+      toast({
+        title: "세션 목록을 불러오지 못했습니다",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
     }
-  }
+  };
 
   const loadHistory = async (session: number) => {
     try {
-      const res = await ChatApi.history(session)
-      setSessionId(res.sessionId)
-      setMessages(res.history)
+      const res = await ChatApi.history(session);
+      setSessionId(res.sessionId);
+      setMessages(res.history);
     } catch (err: unknown) {
-      setMessages([])
-      const message = extractErrorMessage(err)
+      setMessages([]);
+      const message = extractErrorMessage(err);
       if (message && !/404/i.test(message)) {
-        toast({ title: '대화 불러오기 실패', description: message, status: 'error' })
+        toast({
+          title: "대화 불러오기 실패",
+          description: message,
+          status: "error",
+        });
       }
     }
-  }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || !selectedDb) {
-      toast({ title: '데이터베이스와 질문을 확인하세요.', status: 'warning' })
-      return
+      toast({ title: "데이터베이스와 질문을 확인하세요.", status: "warning" });
+      return;
     }
-    const selected = databases.find((d) => d.id === selectedDb)
+    const selected = databases.find((d) => d.id === selectedDb);
     if (selected && !selected.schemaReady) {
-      toast({ title: '스키마 수집 중입니다.', description: '스키마가 준비될 때까지 잠시만 기다려주세요.', status: 'info' })
-      return
+      toast({
+        title: "스키마 수집 중입니다.",
+        description: "스키마가 준비될 때까지 잠시만 기다려주세요.",
+        status: "info",
+      });
+      return;
     }
-    setSending(true)
+    setSending(true);
     try {
-      const res = await ChatApi.ask({ dbId: selectedDb, message: input, sessionId })
-      setMessages(res.history)
-      setSessionId(res.sessionId)
-      setInput('')
+      const res = await ChatApi.ask({
+        dbId: selectedDb,
+        message: input,
+        sessionId,
+      });
+      setMessages(res.history);
+      setSessionId(res.sessionId);
+      setInput("");
     } catch (err: unknown) {
-      toast({ title: '질문 전송 실패', description: extractErrorMessage(err), status: 'error' })
+      toast({
+        title: "질문 전송 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }
+  };
 
   const handleExecute = async (sql: string) => {
     if (!selectedDb) {
-      toast({ title: 'DB를 먼저 선택하세요.', status: 'warning' })
-      return
+      toast({ title: "DB를 먼저 선택하세요.", status: "warning" });
+      return;
     }
-    const isSelect = /^\s*select\b/i.test(sql)
+    const isSelect = /^\s*select\b/i.test(sql);
     if (!isSelect) {
-      toast({ title: 'SELECT 쿼리만 실행할 수 있습니다.', status: 'warning' })
-      return
+      toast({ title: "SELECT 쿼리만 실행할 수 있습니다.", status: "warning" });
+      return;
     }
-    setExecLoading(true)
+    setExecLoading(true);
     try {
-      const res = await DbApi.execute({ dbId: selectedDb, sql })
-      setExecResult(res)
-      openResult()
+      const res = await DbApi.execute({ dbId: selectedDb, sql });
+      setExecResult(res);
+      openResult();
     } catch (err: unknown) {
-      toast({ title: '쿼리 실행 실패', description: extractErrorMessage(err), status: 'error' })
+      toast({
+        title: "쿼리 실행 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
     } finally {
-      setExecLoading(false)
+      setExecLoading(false);
     }
-  }
+  };
 
-  const newSession = () => {
-    setSessionId(undefined)
-    setMessages([])
-  }
-
-  const formatDate = (val: string) => new Date(val).toLocaleTimeString()
+  const formatDate = (val: string) => new Date(val).toLocaleTimeString();
 
   const handleDbTest = async () => {
-    setDbTesting(true)
-    setDbTestResult(null)
+    setDbTesting(true);
+    setDbTestResult(null);
     try {
-      const res = await DbApi.testConnection(dbForm)
-      setDbTestResult(res)
-      toast({ title: res.success ? 'DB 연결 성공' : 'DB 연결 실패', description: res.message, status: res.success ? 'success' : 'error' })
+      const res = await DbApi.testConnection(dbForm);
+      setDbTestResult(res);
+      toast({
+        title: res.success ? "DB 연결 성공" : "DB 연결 실패",
+        description: res.message,
+        status: res.success ? "success" : "error",
+      });
     } catch (err: unknown) {
-      toast({ title: '테스트 실패', description: extractErrorMessage(err), status: 'error' })
+      toast({
+        title: "테스트 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
     } finally {
-      setDbTesting(false)
+      setDbTesting(false);
     }
-  }
+  };
 
   const handleDbSave = async () => {
-    setDbSaving(true)
+    setDbSaving(true);
     try {
-      const res = await DbApi.register(dbForm)
-      setDatabases((prev) => [...prev, res])
-      setSelectedDb(res.id)
-      setDbForm(emptyDbForm)
-      setDbTestResult(null)
-      onClose()
-      toast({ title: 'DB 등록 완료', status: 'success' })
+      const res = await DbApi.register(dbForm);
+      setDatabases((prev) => [...prev, res]);
+      setSelectedDb(res.id);
+      setDbForm(emptyDbForm);
+      setDbTestResult(null);
+      onClose();
+      toast({ title: "DB 등록 완료", status: "success" });
     } catch (err: unknown) {
-      toast({ title: 'DB 저장 실패', description: extractErrorMessage(err), status: 'error' })
+      toast({
+        title: "DB 저장 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
     } finally {
-      setDbSaving(false)
+      setDbSaving(false);
     }
-  }
+  };
 
-  const updateDbForm = (patch: Partial<DbConnectionRequest>) => setDbForm({ ...dbForm, ...patch })
+  const updateDbForm = (patch: Partial<DbConnectionRequest>) =>
+    setDbForm({ ...dbForm, ...patch });
 
   const handleDbDelete = async () => {
     if (!selectedDb) {
-      toast({ title: '삭제할 DB를 선택하세요.', status: 'warning' })
-      return
+      toast({ title: "삭제할 DB를 선택하세요.", status: "warning" });
+      return;
     }
-    const target = databases.find((d) => d.id === selectedDb)
-    const ok = window.confirm(`'${target?.name ?? '선택된 DB'}'을 삭제하시겠습니까? 관련 대화 기록도 함께 삭제됩니다.`)
-    if (!ok) return
+    const target = databases.find((d) => d.id === selectedDb);
+    const ok = window.confirm(
+      `'${target?.name ?? "선택된 DB"}'을 삭제하시겠습니까? 관련 대화 기록도 함께 삭제됩니다.`,
+    );
+    if (!ok) return;
     try {
-      await DbApi.delete(selectedDb)
-      const remaining = databases.filter((d) => d.id !== selectedDb)
-      setDatabases(remaining)
-      setSelectedDb(remaining[0]?.id)
-      setSessionId(undefined)
-      setMessages([])
-      toast({ title: 'DB 삭제 완료', status: 'success' })
+      await DbApi.delete(selectedDb);
+      const remaining = databases.filter((d) => d.id !== selectedDb);
+      setDatabases(remaining);
+      setSelectedDb(remaining[0]?.id);
+      setSessionId(undefined);
+      setMessages([]);
+      toast({ title: "DB 삭제 완료", status: "success" });
     } catch (err: unknown) {
-      toast({ title: 'DB 삭제 실패', description: extractErrorMessage(err), status: 'error' })
+      toast({
+        title: "DB 삭제 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
     }
-  }
+  };
 
   const handleDbRefresh = async () => {
     if (!selectedDb) {
-      toast({ title: '갱신할 DB를 선택하세요.', status: 'warning' })
-      return
+      toast({ title: "갱신할 DB를 선택하세요.", status: "warning" });
+      return;
     }
-    setDbRefreshing(true)
     try {
-      const res = await DbApi.refresh(selectedDb)
-      setDatabases((prev) => prev.map((db) => (db.id === res.id ? res : db)))
-      toast({ title: 'DB 스키마 갱신 완료', status: 'success' })
-      await loadHistory(res.id)
+      const res = await DbApi.refresh(selectedDb);
+      setDatabases((prev) => prev.map((db) => (db.id === res.id ? res : db)));
+      toast({ title: "DB 스키마 갱신 완료", status: "success" });
+      await loadHistory(res.id);
     } catch (err: unknown) {
-      toast({ title: '갱신 실패', description: extractErrorMessage(err), status: 'error' })
-    } finally {
-      setDbRefreshing(false)
+      toast({
+        title: "갱신 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
     }
-  }
+  };
+
+  const createNewSession = async () => {
+    if (!selectedDb) {
+      onToggle();
+      return;
+    }
+    const titleInput = window.prompt("새 세션 이름을 입력하세요", "새 세션");
+    if (titleInput === null) return;
+    const title = titleInput.trim();
+    if (!title) {
+      toast({ title: "세션 이름을 입력하세요.", status: "warning" });
+      return;
+    }
+    try {
+      const created = await ChatApi.createSession({ dbId: selectedDb, title });
+      setSessions((prev) => [created, ...prev]);
+      setSessionId(created.id);
+      setMessages([]);
+      toast({ title: "세션이 생성되었습니다.", status: "success" });
+    } catch (err: unknown) {
+      toast({
+        title: "세션 생성 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
+    }
+  };
 
   return (
     <Stack spacing={6}>
       <Flex justify="space-between" align="center">
         <Stack spacing={2}>
           <Heading size="lg">Jm's SQL Query Bot</Heading>
-          <Text color="gray.300">데이터베이스 구조를 이해하는 AI가 쿼리를 작성하는 봇</Text>
+          <Text color="gray.300">
+            데이터베이스 구조를 이해하는 AI가 쿼리를 작성하는 봇
+          </Text>
         </Stack>
         <HStack spacing={3}>
           <Tag size="lg" variant="subtle" colorScheme="purple">
-            <TagLabel>{user ?? 'admin'}</TagLabel>
+            <TagLabel>{user ?? "admin"}</TagLabel>
           </Tag>
           <Button variant="outline" onClick={logout}>
             로그아웃
@@ -266,19 +351,24 @@ export function ChatPage({ user }: Props) {
 
       <Card bg="whiteAlpha.50" borderColor="whiteAlpha.200" borderWidth="1px">
         <CardBody>
-          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr auto auto auto' }} gap={4} alignItems="center">
+          <Grid
+            templateColumns={{ base: "1fr", md: "2fr 1fr auto" }}
+            gap={4}
+            alignItems="center"
+          >
             <GridItem>
               <FormControl>
                 <FormLabel color="gray.200">데이터베이스 선택</FormLabel>
                 <Select
-                  value={selectedDb ?? ''}
+                  value={selectedDb ?? ""}
                   onChange={async (e) => {
-                    const id = Number(e.target.value)
-                    setSelectedDb(id)
-                    if(id !== 0) await loadSessions(id)
-                    else {
-                        setSessions([])
-                        setMessages([])
+                    const id = Number(e.target.value);
+                    setSelectedDb(id);
+                    if (id) {
+                      await loadSessions(id);
+                    } else {
+                      setSessions([]);
+                      setMessages([]);
                     }
                   }}
                   placeholder="선택하세요"
@@ -292,36 +382,16 @@ export function ChatPage({ user }: Props) {
               </FormControl>
             </GridItem>
             <GridItem>
-              {selectedDbName && (
-                <Text color="gray.300" fontSize="sm">
-                  {selectedDbName}와 연결된 세션에서 질의 중입니다.
-                </Text>
-              )}
-            </GridItem>
-            <GridItem>
-              <Button leftIcon={<FiPlus />} variant="ghost" onClick={onToggle}>
-                새 DB 추가
-              </Button>
-            </GridItem>
-            <GridItem>
-              <Button variant="solid" onClick={handleDbRefresh} isLoading={dbRefreshing} isDisabled={!selectedDb}>
-                DB 정보 갱신
-              </Button>
-            </GridItem>
-            <GridItem>
-              <Button colorScheme="red" variant="outline" onClick={handleDbDelete} isDisabled={!selectedDb}>
-                선택 DB 삭제
-              </Button>
-            </GridItem>
-            <GridItem>
               <FormControl>
                 <FormLabel color="gray.200">세션 선택</FormLabel>
                 <Select
-                  value={sessionId ?? ''}
+                  value={sessionId ?? ""}
                   onChange={async (e) => {
-                    const sid = Number(e.target.value)
-                    setSessionId(sid)
-                    await loadHistory(sid)
+                    const sid = Number(e.target.value);
+                    setSessionId(sid);
+                    if (sid) {
+                      await loadHistory(sid);
+                    }
                   }}
                   placeholder="세션을 선택하세요"
                 >
@@ -333,49 +403,93 @@ export function ChatPage({ user }: Props) {
                 </Select>
               </FormControl>
             </GridItem>
+            <GridItem>
+              <HStack justify="flex-end">
+                <Menu>
+                  <ButtonGroup isAttached size="sm" variant="outline">
+                    <Button
+                      onClick={createNewSession}
+                      leftIcon={<FiRefreshCw />}
+                    >
+                      {selectedDb ? "새 대화" : "새 DB 추가"}
+                    </Button>
+                    <MenuButton
+                      as={IconButton}
+                      icon={<LuChevronDown />}
+                      aria-label="more actions"
+                    />
+                  </ButtonGroup>
+                  <MenuList>
+                    {selectedDb ? (
+                      <>
+                        <MenuItem
+                          icon={<FiRefreshCw />}
+                          onClick={async () => {
+                            const ok = window.confirm(
+                              "선택한 DB의 스키마를 다시 수집할까요?",
+                            );
+                            if (ok) {
+                              await handleDbRefresh();
+                            }
+                          }}
+                        >
+                          DB 정보 갱신
+                        </MenuItem>
+                        <MenuItem icon={<FiPlus />} onClick={onToggle}>
+                          새 DB 추가
+                        </MenuItem>
+                        <MenuItem onClick={handleDbDelete} color="red.400">
+                          선택 DB 삭제
+                        </MenuItem>
+                      </>
+                    ) : (
+                      <MenuItem icon={<FiPlus />} onClick={onToggle}>
+                        새 DB 추가
+                      </MenuItem>
+                    )}
+                  </MenuList>
+                </Menu>
+              </HStack>
+            </GridItem>
           </Grid>
-          <HStack mt={4} spacing={3} flexWrap="wrap">
-            <Button leftIcon={<FiRefreshCw />} variant="outline" onClick={newSession}>
-              새 대화
-            </Button>
-            <Button
-              variant="outline"
-              onClick={async () => {
-                if (!selectedDb) {
-                  toast({ title: 'DB를 먼저 선택하세요.', status: 'warning' })
-                  return
-                }
-                const title = window.prompt('새 세션 이름을 입력하세요', `새 세션 (${selectedDbName ?? ''})`)
-                if (!title) return
-                try {
-                  const created = await ChatApi.createSession({ dbId: selectedDb, title })
-                  setSessions((prev) => [created, ...prev])
-                  setSessionId(created.id)
-                  setMessages([])
-                  toast({ title: '세션이 생성되었습니다.', status: 'success' })
-                } catch (err: unknown) {
-                  toast({ title: '세션 생성 실패', description: extractErrorMessage(err), status: 'error' })
-                }
-              }}
-              isDisabled={!selectedDb}
-            >
-              새 세션 추가
-            </Button>
-          </HStack>
           {isOpen && (
-            <Box mt={6} p={4} borderRadius="md" borderWidth="1px" borderColor="whiteAlpha.200" bg="blackAlpha.300">
+            <Box
+              mt={6}
+              p={4}
+              borderRadius="md"
+              borderWidth="1px"
+              borderColor="whiteAlpha.200"
+              bg="blackAlpha.300"
+            >
               <HStack justify="space-between" mb={3}>
                 <Heading size="sm">데이터베이스 등록</Heading>
-                {dbTestResult && <Badge colorScheme={dbTestResult.success ? 'green' : 'red'}>{dbTestResult.success ? '테스트 통과' : '테스트 실패'}</Badge>}
+                {dbTestResult && (
+                  <Badge colorScheme={dbTestResult.success ? "green" : "red"}>
+                    {dbTestResult.success ? "테스트 통과" : "테스트 실패"}
+                  </Badge>
+                )}
               </HStack>
-              <Grid templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }} gap={3}>
+              <Grid
+                templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }}
+                gap={3}
+              >
                 <FormControl>
                   <FormLabel>이름</FormLabel>
-                  <Input value={dbForm.name} onChange={(e) => updateDbForm({ name: e.target.value })} />
+                  <Input
+                    value={dbForm.name}
+                    onChange={(e) => updateDbForm({ name: e.target.value })}
+                  />
                 </FormControl>
                 <FormControl>
                   <FormLabel>타입</FormLabel>
-                  <Select value={dbForm.dbType} onChange={(e) => updateDbForm({ dbType: e.target.value as DbConnectionRequest['dbType'] })}>
+                  <Select
+                    value={dbForm.dbType}
+                    onChange={(e) =>
+                      updateDbForm({
+                        dbType: e.target.value as DbConnectionRequest["dbType"],
+                      })
+                    }
+                  >
                     <option value="POSTGRESQL">PostgreSQL</option>
                     <option value="MYSQL">MySQL</option>
                     <option value="MARIADB">MariaDB</option>
@@ -383,34 +497,63 @@ export function ChatPage({ user }: Props) {
                 </FormControl>
                 <FormControl>
                   <FormLabel>DB 이름</FormLabel>
-                  <Input value={dbForm.databaseName} onChange={(e) => updateDbForm({ databaseName: e.target.value })} />
+                  <Input
+                    value={dbForm.databaseName}
+                    onChange={(e) =>
+                      updateDbForm({ databaseName: e.target.value })
+                    }
+                  />
                 </FormControl>
                 <FormControl>
                   <FormLabel>호스트</FormLabel>
-                  <Input value={dbForm.host} onChange={(e) => updateDbForm({ host: e.target.value })} />
+                  <Input
+                    value={dbForm.host}
+                    onChange={(e) => updateDbForm({ host: e.target.value })}
+                  />
                 </FormControl>
                 <FormControl>
                   <FormLabel>포트</FormLabel>
                   <Input
                     type="number"
-                    value={dbForm.port ?? ''}
-                    onChange={(e) => updateDbForm({ port: e.target.value ? Number(e.target.value) : undefined })}
+                    value={dbForm.port ?? ""}
+                    onChange={(e) =>
+                      updateDbForm({
+                        port: e.target.value
+                          ? Number(e.target.value)
+                          : undefined,
+                      })
+                    }
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel>아이디</FormLabel>
-                  <Input value={dbForm.username} onChange={(e) => updateDbForm({ username: e.target.value })} />
+                  <Input
+                    value={dbForm.username}
+                    onChange={(e) => updateDbForm({ username: e.target.value })}
+                  />
                 </FormControl>
                 <FormControl>
                   <FormLabel>비밀번호</FormLabel>
-                  <Input type="password" value={dbForm.password} onChange={(e) => updateDbForm({ password: e.target.value })} />
+                  <Input
+                    type="password"
+                    value={dbForm.password}
+                    onChange={(e) => updateDbForm({ password: e.target.value })}
+                  />
                 </FormControl>
               </Grid>
               <HStack mt={4} spacing={3}>
-                <Button onClick={handleDbTest} isLoading={dbTesting} variant="outline">
+                <Button
+                  onClick={handleDbTest}
+                  isLoading={dbTesting}
+                  variant="outline"
+                >
                   연결 테스트
                 </Button>
-                <Button colorScheme="teal" onClick={handleDbSave} isLoading={dbSaving}>
+                <Button
+                  colorScheme="teal"
+                  onClick={handleDbSave}
+                  isLoading={dbSaving}
+                >
                   저장
                 </Button>
                 <Button variant="ghost" onClick={onClose}>
@@ -422,79 +565,97 @@ export function ChatPage({ user }: Props) {
         </CardBody>
       </Card>
 
-      <Grid templateColumns={{ base: '1fr', md: '2fr 1fr' }} gap={4}>
-        <GridItem>
-          <Card bg="whiteAlpha.50" borderColor="whiteAlpha.200" borderWidth="1px" minH="60vh">
-            <CardBody>
-              <VStack align="stretch" spacing={4}>
-                <Box bg="blackAlpha.500" borderRadius="md" p={3}>
-                  <Text color="gray.200" fontSize="sm">
-                    AI는 스키마를 기반으로 쿼리를 제안하며 모호한 질문에는 추가 정보를 요청합니다. 쿼리가 명확하면 SQL만 반환합니다.
-                  </Text>
-                </Box>
-                <Stack spacing={4} maxH="50vh" overflowY="auto" pr={2}>
-                  {messages.length === 0 && <Text color="gray.400">대화를 시작해보세요. 이전 세션은 새 메시지 이후 표시됩니다.</Text>}
-                  {messages.map((msg, idx) => {
-                    const isAssistant = msg.role === 'ASSISTANT'
-                    const isSelect = /^\s*select\b/i.test(msg.content)
-                    return (
-                      <Box key={idx} bg={msg.role === 'USER' ? 'teal.900' : 'gray.800'} borderRadius="md" p={3} borderWidth="1px" borderColor="whiteAlpha.200">
-                        <HStack justify="space-between" mb={2}>
-                          <Badge colorScheme={msg.role === 'USER' ? 'teal' : 'purple'}>{msg.role === 'USER' ? '나' : 'AI'}</Badge>
-                          <HStack spacing={2}>
-                            {isAssistant && isSelect && (
-                              <Button size="xs" variant="outline" isLoading={execLoading} onClick={() => handleExecute(msg.content)}>
-                                실행 (최대 100건)
-                              </Button>
-                            )}
-                            <Text fontSize="xs" color="gray.400">
-                              {formatDate(msg.createdAt)}
-                            </Text>
-                          </HStack>
-                        </HStack>
-                        <Text whiteSpace="pre-wrap" fontFamily={isAssistant ? 'mono' : 'body'}>
-                          {msg.content}
+      <Card
+        bg="whiteAlpha.50"
+        borderColor="whiteAlpha.200"
+        borderWidth="1px"
+        minH="60vh"
+      >
+        <CardBody>
+          <VStack align="stretch" spacing={4}>
+            <Box bg="blackAlpha.500" borderRadius="md" p={3}>
+              <Text color="gray.200" fontSize="sm">
+                AI는 스키마를 기반으로 쿼리를 제안하며 모호한 질문에는 추가
+                정보를 요청합니다. 쿼리가 명확하면 SQL만 반환합니다.
+              </Text>
+            </Box>
+            <Stack spacing={4} maxH="50vh" overflowY="auto" pr={2}>
+              {messages.length === 0 && (
+                <Text color="gray.400">
+                  대화를 시작해보세요. 이전 세션은 새 메시지 이후 표시됩니다.
+                </Text>
+              )}
+              {messages.map((msg, idx) => {
+                const isAssistant = msg.role === "ASSISTANT";
+                const isSelect = /^\s*select\b/i.test(msg.content);
+                return (
+                  <Box
+                    key={idx}
+                    bg={msg.role === "USER" ? "teal.900" : "gray.800"}
+                    borderRadius="md"
+                    p={3}
+                    borderWidth="1px"
+                    borderColor="whiteAlpha.200"
+                  >
+                    <HStack justify="space-between" mb={2}>
+                      <Badge
+                        colorScheme={msg.role === "USER" ? "teal" : "purple"}
+                      >
+                        {msg.role === "USER" ? "나" : "AI"}
+                      </Badge>
+                      <HStack spacing={2}>
+                        {isAssistant && isSelect && (
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            isLoading={execLoading}
+                            onClick={() => handleExecute(msg.content)}
+                          >
+                            실행 (최대 100건)
+                          </Button>
+                        )}
+                        <Text fontSize="xs" color="gray.400">
+                          {formatDate(msg.createdAt)}
                         </Text>
-                      </Box>
-                    )
-                  })}
-                </Stack>
-                <Divider />
-                <Textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
-                    }
-                  }}
-                  placeholder="예: 지난주 신규 가입자 수를 반환하는 쿼리를 알려줘"
-                  bg="blackAlpha.500"
-                  borderColor="whiteAlpha.200"
-                  minH="120px"
-                />
-                <Button colorScheme="teal" rightIcon={<FiArrowRight />} alignSelf="flex-end" onClick={handleSend} isLoading={sending}>
-                  전송
-                </Button>
-              </VStack>
-            </CardBody>
-          </Card>
-        </GridItem>
-        <GridItem>
-          <Card bg="whiteAlpha.50" borderColor="whiteAlpha.200" borderWidth="1px">
-            <CardBody>
-              <Stack spacing={3}>
-                <Heading size="sm">사용 가이드</Heading>
-                <Text color="gray.300">1) DB를 선택하고, 2) 질문을 입력하세요. 동일 세션에서 맥락이 유지됩니다.</Text>
-                <Text color="gray.300">쿼리가 모호하면 AI가 한국어로 추가 정보를 요청합니다.</Text>
-                <Text color="gray.300">명확한 경우 오류 없이 실행 가능한 SELECT 쿼리만 돌려줍니다.</Text>
-                <Text color="gray.300">AI가 제안한 SELECT는 실행 버튼으로 바로 테스트할 수 있으며 최대 100건까지 조회합니다.</Text>
-              </Stack>
-            </CardBody>
-          </Card>
-        </GridItem>
-      </Grid>
+                      </HStack>
+                    </HStack>
+                    <Text
+                      whiteSpace="pre-wrap"
+                      fontFamily={isAssistant ? "mono" : "body"}
+                    >
+                      {msg.content}
+                    </Text>
+                  </Box>
+                );
+              })}
+            </Stack>
+            <Divider />
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="예: 지난주 신규 가입자 수를 반환하는 쿼리를 알려줘"
+              bg="blackAlpha.500"
+              borderColor="whiteAlpha.200"
+              minH="120px"
+            />
+            <Button
+              colorScheme="teal"
+              rightIcon={<FiArrowRight />}
+              alignSelf="flex-end"
+              onClick={handleSend}
+              isLoading={sending}
+            >
+              전송
+            </Button>
+          </VStack>
+        </CardBody>
+      </Card>
 
       <ResultModal
         isOpen={isResultOpen}
@@ -503,5 +664,5 @@ export function ChatPage({ user }: Props) {
         rows={execResult?.rows ?? []}
       />
     </Stack>
-  )
+  );
 }
