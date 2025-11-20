@@ -7,6 +7,7 @@ public class AppProperties {
 
     private final Security security = new Security();
     private final OpenAi openai = new OpenAi();
+    private String dataDir = "./data";
 
     public Security getSecurity() {
         return security;
@@ -14,6 +15,14 @@ public class AppProperties {
 
     public OpenAi getOpenai() {
         return openai;
+    }
+
+    public String getDataDir() {
+        return dataDir;
+    }
+
+    public void setDataDir(String dataDir) {
+        this.dataDir = dataDir;
     }
 
     public static class Security {

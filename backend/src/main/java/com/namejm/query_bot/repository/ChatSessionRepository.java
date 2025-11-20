@@ -1,7 +1,10 @@
 package com.namejm.query_bot.repository;
 
 import com.namejm.query_bot.domain.ChatSession;
+import com.namejm.query_bot.domain.DatabaseConnection;
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
+    List<ChatSession> findByDatabaseConnection(DatabaseConnection databaseConnection);
 }

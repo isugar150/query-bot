@@ -50,6 +50,9 @@ public class ChatService {
     public ChatResponse ask(ChatRequest request) throws Exception {
         DatabaseConnection database = databaseService.findById(request.dbId())
                 .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
+        if (!database.isSchemaReady()) {
+            throw new IllegalStateException("해당 데이터베이스의 스키마를 아직 수집 중입니다. 잠시 후 다시 시도해주세요.");
+        }
 
         ChatSession session = resolveSession(request, database);
         SchemaOverview schema = loadSchema(database);

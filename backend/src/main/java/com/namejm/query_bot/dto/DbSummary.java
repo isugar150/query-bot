@@ -8,6 +8,7 @@ public record DbSummary(
         DatabaseType dbType,
         String host,
         Integer port,
-        String databaseName
+        String databaseName,
+        boolean schemaReady
 ) {
 }

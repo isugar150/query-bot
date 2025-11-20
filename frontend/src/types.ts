@@ -32,6 +32,7 @@ export type DbSummary = {
   host: string
   port: number
   databaseName: string
+  schemaReady: boolean
 }
 
 export type ColumnOverview = {

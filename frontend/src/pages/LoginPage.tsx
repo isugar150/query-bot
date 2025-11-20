@@ -54,7 +54,7 @@ export function LoginPage({ onAuth }: Props) {
             </FormControl>
             <FormControl>
               <FormLabel>비밀번호</FormLabel>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && submit() } />
             </FormControl>
             <Button colorScheme="teal" onClick={submit} isLoading={loading} isDisabled={!username || !password}>
               로그인

@@ -5,11 +5,11 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Optional;
+import javax.crypto.SecretKey;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -69,7 +69,7 @@ public class TokenService {
                 .compact();
     }
 
-    private Key getSigningKey() {
+    private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(appProperties.getSecurity().getJwtSecret().getBytes(StandardCharsets.UTF_8));
     }
 }

@@ -46,6 +46,11 @@ public class DatabaseConnection {
     @Lob
     private String schemaJson;
 
+    @Column(nullable = false, columnDefinition = "BOOLEAN NOT NULL DEFAULT 0")
+    private boolean schemaReady = false;
+
+    private LocalDateTime schemaUpdatedAt;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -126,6 +131,22 @@ public class DatabaseConnection {
 
     public void setSchemaJson(String schemaJson) {
         this.schemaJson = schemaJson;
+    }
+
+    public boolean isSchemaReady() {
+        return schemaReady;
+    }
+
+    public void setSchemaReady(boolean schemaReady) {
+        this.schemaReady = schemaReady;
+    }
+
+    public LocalDateTime getSchemaUpdatedAt() {
+        return schemaUpdatedAt;
+    }
+
+    public void setSchemaUpdatedAt(LocalDateTime schemaUpdatedAt) {
+        this.schemaUpdatedAt = schemaUpdatedAt;
     }
 
     public LocalDateTime getCreatedAt() {

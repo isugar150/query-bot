@@ -14,4 +14,7 @@ export const DbApi = {
     const res = await apiClient.get<DbSummary[]>('/db/list')
     return res.data
   },
+  delete: async (id: number) => {
+    await apiClient.delete(`/db/${id}`)
+  },
 }

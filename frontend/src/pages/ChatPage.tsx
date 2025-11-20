@@ -82,6 +82,11 @@ export function ChatPage({ user }: Props) {
       toast({ title: '데이터베이스와 질문을 확인하세요.', status: 'warning' })
       return
     }
+    const selected = databases.find((d) => d.id === selectedDb)
+    if (selected && !selected.schemaReady) {
+      toast({ title: '스키마 수집 중입니다.', description: '스키마가 준비될 때까지 잠시만 기다려주세요.', status: 'info' })
+      return
+    }
     const optimistic: ChatMessage = { role: 'USER', content: input, createdAt: new Date().toISOString() }
     setMessages((prev) => [...prev, optimistic])
     setSending(true)
@@ -137,6 +142,27 @@ export function ChatPage({ user }: Props) {
 
   const updateDbForm = (patch: Partial<DbConnectionRequest>) => setDbForm({ ...dbForm, ...patch })
 
+  const handleDbDelete = async () => {
+    if (!selectedDb) {
+      toast({ title: '삭제할 DB를 선택하세요.', status: 'warning' })
+      return
+    }
+    const target = databases.find((d) => d.id === selectedDb)
+    const ok = window.confirm(`'${target?.name ?? '선택된 DB'}'을 삭제하시겠습니까? 관련 대화 기록도 함께 삭제됩니다.`)
+    if (!ok) return
+    try {
+      await DbApi.delete(selectedDb)
+      const remaining = databases.filter((d) => d.id !== selectedDb)
+      setDatabases(remaining)
+      setSelectedDb(remaining[0]?.id)
+      setSessionId(undefined)
+      setMessages([])
+      toast({ title: 'DB 삭제 완료', status: 'success' })
+    } catch (err: any) {
+      toast({ title: 'DB 삭제 실패', description: err?.response?.data?.message ?? err.message, status: 'error' })
+    }
+  }
+
   return (
     <Stack spacing={6}>
       <Flex justify="space-between" align="center">
@@ -156,7 +182,7 @@ export function ChatPage({ user }: Props) {
 
       <Card bg="whiteAlpha.50" borderColor="whiteAlpha.200" borderWidth="1px">
         <CardBody>
-          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr auto auto' }} gap={4} alignItems="center">
+          <Grid templateColumns={{ base: '1fr', md: '2fr 1fr auto auto auto' }} gap={4} alignItems="center">
             <GridItem>
               <FormControl>
                 <FormLabel color="gray.200">데이터베이스 선택</FormLabel>
@@ -184,6 +210,11 @@ export function ChatPage({ user }: Props) {
             <GridItem>
               <Button leftIcon={<FiRefreshCw />} variant="outline" onClick={newSession}>
                 새 대화
+              </Button>
+            </GridItem>
+            <GridItem>
+              <Button colorScheme="red" variant="outline" onClick={handleDbDelete} isDisabled={!selectedDb}>
+                선택 DB 삭제
               </Button>
             </GridItem>
           </Grid>

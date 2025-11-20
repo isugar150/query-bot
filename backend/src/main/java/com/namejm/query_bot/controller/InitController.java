@@ -52,7 +52,8 @@ public class InitController {
                 savedDb.getDbType(),
                 savedDb.getHost(),
                 savedDb.getPort(),
-                savedDb.getDatabaseName()
+                savedDb.getDatabaseName(),
+                savedDb.isSchemaReady()
         );
         return ResponseEntity.ok(new InitSetupResponse(auth, summary));
     }
