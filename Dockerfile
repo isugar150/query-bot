@@ -10,12 +10,12 @@ RUN ./gradlew bootJar --no-daemon
 
 FROM node:22-alpine AS frontend-build
 WORKDIR /workspace/frontend
-COPY frontend/query-bot/package*.json ./
-COPY frontend/query-bot/tsconfig*.json ./
-COPY frontend/query-bot/vite.config.ts ./
-COPY frontend/query-bot/eslint.config.js ./
-COPY frontend/query-bot/src ./src
-COPY frontend/query-bot/public ./public
+COPY frontend/package*.json ./
+COPY frontend/tsconfig*.json ./
+COPY frontend/vite.config.ts ./
+COPY frontend/eslint.config.js ./
+COPY frontend/src ./src
+COPY frontend/public ./public
 RUN npm install
 RUN npm run build
 
