@@ -41,7 +41,9 @@ public class DataSourceConfig {
         HikariConfig config = new HikariConfig();
         config.setDriverClassName("org.sqlite.JDBC");
         config.setJdbcUrl(jdbcUrl);
-        config.setMaximumPoolSize(5);
+        // SQLite allows a single writer; keep pool at 1 and set a small busy timeout to reduce lock errors.
+        config.setMaximumPoolSize(1);
+        config.addDataSourceProperty("busy_timeout", 5000);
         return new HikariDataSource(config);
     }
 }

@@ -148,6 +148,19 @@ export function ChatPage({ user }: Props) {
     }
   };
 
+  const refreshSessions = async (dbId: number) => {
+    try {
+      const res = await ChatApi.sessions(dbId);
+      setSessions(res);
+    } catch (err: unknown) {
+      toast({
+        title: "세션 목록 갱신 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || !selectedDb) {
       toast({ title: "데이터베이스와 질문을 확인하세요.", status: "warning" });
@@ -163,6 +176,7 @@ export function ChatPage({ user }: Props) {
       return;
     }
     setSending(true);
+    const isNewSession = !sessionId;
     try {
       const res = await ChatApi.ask({
         dbId: selectedDb,
@@ -172,6 +186,9 @@ export function ChatPage({ user }: Props) {
       setMessages(res.history);
       setSessionId(res.sessionId);
       setInput("");
+      if (isNewSession) {
+        await refreshSessions(selectedDb);
+      }
     } catch (err: unknown) {
       toast({
         title: "질문 전송 실패",
@@ -303,31 +320,13 @@ export function ChatPage({ user }: Props) {
     }
   };
 
-  const createNewSession = async () => {
+  const createNewSession = () => {
     if (!selectedDb) {
       onToggle();
       return;
     }
-    const titleInput = window.prompt("새 세션 이름을 입력하세요", "새 세션");
-    if (titleInput === null) return;
-    const title = titleInput.trim();
-    if (!title) {
-      toast({ title: "세션 이름을 입력하세요.", status: "warning" });
-      return;
-    }
-    try {
-      const created = await ChatApi.createSession({ dbId: selectedDb, title });
-      setSessions((prev) => [created, ...prev]);
-      setSessionId(created.id);
-      setMessages([]);
-      toast({ title: "세션이 생성되었습니다.", status: "success" });
-    } catch (err: unknown) {
-      toast({
-        title: "세션 생성 실패",
-        description: extractErrorMessage(err),
-        status: "error",
-      });
-    }
+    setSessionId(undefined);
+    setMessages([]);
   };
 
   return (
@@ -403,7 +402,7 @@ export function ChatPage({ user }: Props) {
                 </Select>
               </FormControl>
             </GridItem>
-            <GridItem>
+            <GridItem alignSelf={{ base: "stretch", md: "end" }}>
               <HStack justify="flex-end">
                 <Menu>
                   <ButtonGroup isAttached size="sm" variant="outline">
@@ -643,6 +642,7 @@ export function ChatPage({ user }: Props) {
               bg="blackAlpha.500"
               borderColor="whiteAlpha.200"
               minH="120px"
+              readOnly={sending}
             />
             <Button
               colorScheme="teal"
