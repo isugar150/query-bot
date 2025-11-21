@@ -622,16 +622,10 @@ export function ChatPage({ user }: Props) {
           <VStack align="stretch" spacing={4}>
             <Box bg="blackAlpha.500" borderRadius="md" p={3}>
               <Text color="gray.200" fontSize="sm">
-                AI는 스키마를 기반으로 쿼리를 제안하며 모호한 질문에는 추가
-                정보를 요청합니다. 쿼리가 명확하면 SQL만 반환합니다.
+                각 SQL 질의 의도마다 하나의 세션만 사용하십시오.
               </Text>
             </Box>
             <Stack spacing={4} maxH="50vh" overflowY="auto" pr={2}>
-              {messages.length === 0 && (
-                <Text color="gray.400">
-                  대화를 시작해보세요. 이전 세션은 새 메시지 이후 표시됩니다.
-                </Text>
-              )}
               {messages.map((msg, idx) => {
                 const isAssistant = msg.role === "ASSISTANT";
                 const isSelect = /^\s*select\b/i.test(msg.content);
