@@ -39,11 +39,9 @@ public class QueryExecutionService {
             throw new IllegalArgumentException("SELECT 쿼리만 실행할 수 있습니다.");
         }
 
-        String wrapped = "SELECT * FROM (" + trimmed + ") AS qbot_sub LIMIT 100";
-
         try (Connection connection = openConnection(db);
              Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(wrapped)) {
+             ResultSet rs = stmt.executeQuery(trimmed)) {
             ResultSetMetaData meta = rs.getMetaData();
             int columnCount = meta.getColumnCount();
             List<String> columns = new ArrayList<>();

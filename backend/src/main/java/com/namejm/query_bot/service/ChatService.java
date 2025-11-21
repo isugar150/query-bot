@@ -228,9 +228,11 @@ public class ChatService {
                 .append("When the query is unambiguous and valid, respond with the SQL only. ")
                 .append("Always include the schema prefix (schema.table) for every table reference. ")
                 .append("Return exactly one SELECT statement (no multiple statements like `SELECT 1; SELECT 2;`). ")
+                .append("Do NOT add LIMIT unless the user explicitly asks for a row limit or pagination. ")
                 .append("Pay close attention to table/column comments; prefer tables whose comments match the request and ignore unrelated tables even if they look similar. ")
                 .append("Never invent tables or columns; before answering, verify every table/column you reference exists in the schema below. ")
-                .append("If the user asks for a table or column that is not listed, reply in Korean that the table/column does not exist and ask them to choose from the provided schema instead of generating a query.\n\n");
+                .append("If you cannot find an exact table or column match, DO NOT guess—reply in Korean that the table/column does not exist and list the available options instead of generating SQL. ")
+                .append("Before returning SQL, re-check that every column in the query is present in the listed columns; if any are missing, return the Korean error message instead of SQL.\n\n");
         builder.append("Database: ").append(schema.database());
         if (schema.schemas() != null && !schema.schemas().isEmpty()) {
             builder.append(" (schemas: ").append(String.join(", ", schema.schemas())).append(")");
