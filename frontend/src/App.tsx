@@ -40,7 +40,7 @@ function App() {
         setServerDown(false);
         setServerErrorMessage(null);
       } catch (err) {
-        const is503 = isAxiosError(err) && err.response?.status === 503;
+        const is503 = isAxiosError(err) && err.response?.status === 502;
         setServerDown(is503);
         setServerErrorMessage(extractErrorMessage(err));
       } finally {
