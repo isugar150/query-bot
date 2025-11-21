@@ -9,6 +9,7 @@ import com.namejm.query_bot.model.DatabaseType;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -65,12 +66,21 @@ public class DatabaseMetadataService {
         Set<String> discoveredSchemas = new LinkedHashSet<>();
         List<TableOverview> tables = new ArrayList<>();
         for (String schemaName : targetSchemas) {
-            // For PostgreSQL: catalog is the database, schemaPattern can be null to fetch all; when schemaName is "%" we fetch all schemas.
-            boolean fetchAllPgSchemas = request.dbType() == DatabaseType.POSTGRESQL && "%".equals(schemaName);
-            String catalog = request.dbType() == DatabaseType.POSTGRESQL ? primaryDb : schemaName;
-            String schemaPattern = request.dbType() == DatabaseType.POSTGRESQL
-                    ? (fetchAllPgSchemas ? null : schemaName)
-                    : null;
+            boolean isPostgres = request.dbType() == DatabaseType.POSTGRESQL;
+            boolean fetchAllPgSchemas = isPostgres && "%".equals(schemaName);
+
+            // Determine catalog/schemaPattern per DB type.
+            String catalog;
+            String schemaPattern;
+            if (isPostgres) {
+                catalog = primaryDb; // catalog is the database
+                schemaPattern = fetchAllPgSchemas ? null : schemaName; // null => all schemas
+            } else {
+                // MySQL/MariaDB treat catalog as database; connection DB is primaryDb.
+                catalog = schemaName;
+                // If schemaName equals primaryDb, let schemaPattern be null; otherwise use schemaName to target another catalog.
+                schemaPattern = null;
+            }
 
             try (ResultSet tableRs = metaData.getTables(catalog, schemaPattern, "%", new String[]{"TABLE"})) {
                 while (tableRs.next()) {
@@ -81,16 +91,7 @@ public class DatabaseMetadataService {
                     discoveredSchemas.add(actualSchema);
                     String tableName = tableRs.getString("TABLE_NAME");
                     String tableComment = tableRs.getString("REMARKS");
-                    List<ColumnOverview> columns = new ArrayList<>();
-                    try (ResultSet columnRs = metaData.getColumns(catalog, actualSchema, tableName, "%")) {
-                        while (columnRs.next()) {
-                            String name = columnRs.getString("COLUMN_NAME");
-                            String type = columnRs.getString("TYPE_NAME");
-                            boolean nullable = "YES".equalsIgnoreCase(columnRs.getString("IS_NULLABLE"));
-                            String comment = columnRs.getString("REMARKS");
-                            columns.add(new ColumnOverview(name, type, nullable, comment));
-                        }
-                    }
+                    List<ColumnOverview> columns = fetchColumns(request.dbType(), connection, catalog, actualSchema, tableName, metaData);
                     tables.add(new TableOverview(actualSchema, tableName, columns, tableComment));
                 }
             }
@@ -124,8 +125,10 @@ public class DatabaseMetadataService {
 
     private List<String> resolveSchemas(DatabaseType dbType, String rawDatabase, String primaryDb) {
         List<String> tokens = parseSchemas(rawDatabase);
+        // Always include all explicitly provided tokens as schema candidates (first token may also be a schema).
         if (tokens.size() > 1) {
-            return tokens.subList(1, tokens.size());
+            // Preserve order, avoid duplicates.
+            return new ArrayList<>(new LinkedHashSet<>(tokens));
         }
         // No schemas explicitly provided.
         if (dbType == DatabaseType.POSTGRESQL) {
@@ -134,5 +137,53 @@ public class DatabaseMetadataService {
         }
         // For MySQL/MariaDB, schema == database.
         return List.of(primaryDb);
+    }
+
+    private List<ColumnOverview> fetchColumns(DatabaseType dbType, Connection connection, String catalog, String schema, String tableName, DatabaseMetaData metaData) throws Exception {
+        // For PostgreSQL, prefer information_schema to avoid driver quirks and ensure full column lists.
+        if (dbType == DatabaseType.POSTGRESQL) {
+            String sql = """
+                    select c.column_name,
+                           c.data_type,
+                           c.is_nullable,
+                           pgd.description
+                    from information_schema.columns c
+                    join pg_catalog.pg_class cls on cls.relname = c.table_name
+                    join pg_catalog.pg_namespace nsp on nsp.oid = cls.relnamespace and nsp.nspname = c.table_schema
+                    left join pg_catalog.pg_description pgd on pgd.objoid = cls.oid and pgd.objsubid = c.ordinal_position
+                    where c.table_schema = ? and c.table_name = ?
+                    order by c.ordinal_position
+                    """;
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setString(1, schema);
+                ps.setString(2, tableName);
+                try (ResultSet rs = ps.executeQuery()) {
+                    List<ColumnOverview> columns = new ArrayList<>();
+                    while (rs.next()) {
+                        String name = rs.getString("column_name");
+                        String type = rs.getString("data_type");
+                        boolean nullable = "YES".equalsIgnoreCase(rs.getString("is_nullable"));
+                        String comment = rs.getString("description");
+                        columns.add(new ColumnOverview(name, type, nullable, comment));
+                    }
+                    if (!columns.isEmpty()) {
+                        return columns;
+                    }
+                }
+            }
+            // Fallback if query returns nothing.
+        }
+
+        List<ColumnOverview> columns = new ArrayList<>();
+        try (ResultSet columnRs = metaData.getColumns(catalog, schema, tableName, "%")) {
+            while (columnRs.next()) {
+                String name = columnRs.getString("COLUMN_NAME");
+                String type = columnRs.getString("TYPE_NAME");
+                boolean nullable = "YES".equalsIgnoreCase(columnRs.getString("IS_NULLABLE"));
+                String comment = columnRs.getString("REMARKS");
+                columns.add(new ColumnOverview(name, type, nullable, comment));
+            }
+        }
+        return columns;
     }
 }
