@@ -1,0 +1,15 @@
+docker stop query-bot
+docker rm query-bot
+docker rmi query-bot
+
+docker load -i querybot.tar
+
+docker run -d \
+  --name query-bot \
+  -p 5213:5213 \
+  -e JWT_SECRET=my-secret-key \
+  -e OPENAI_API_KEY=my-openai-api-key \
+  -e APP_DATA_DIR=/app/data \
+  -e SERVER_PORT=8080 \
+  -v $(pwd)/data:/app/data \
+  query-bot:latest
