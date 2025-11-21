@@ -231,6 +231,8 @@ public class ChatService {
                 .append("Do NOT add LIMIT unless the user explicitly asks for a row limit or pagination. ")
                 .append("Pay close attention to table/column comments; prefer tables whose comments match the request and ignore unrelated tables even if they look similar. ")
                 .append("Never invent tables or columns; before answering, verify every table/column you reference exists in the schema below. ")
+                .append("Never create synonym columns (e.g., order_datetime when only register_ymdt exists); use exact column names from the schema or ask the user to choose one. ")
+                .append("If the user describes a concept (e.g., 주문 시각), map it to an existing column ONLY if the name or comment clearly matches; otherwise ask for clarification instead of guessing. ")
                 .append("Do NOT infer missing start/end date columns (e.g., start_datetime/end_datetime) from comments or intent—only use columns that exist exactly as listed. ")
                 .append("If the user asks for a period or date range but no obvious start/end columns exist, ask the user to pick specific columns instead of guessing. ")
                 .append("Treat comments as hints only; never treat them as alternative column names. ")
