@@ -31,6 +31,8 @@ public class ChatSession {
     @Column(columnDefinition = "TEXT")
     private String systemPrompt;
 
+    private Long systemPromptDatabaseId;
+
     @PrePersist
     public void onCreate() {
         createdAt = LocalDateTime.now();
@@ -62,6 +64,14 @@ public class ChatSession {
 
     public void setSystemPrompt(String systemPrompt) {
         this.systemPrompt = systemPrompt;
+    }
+
+    public Long getSystemPromptDatabaseId() {
+        return systemPromptDatabaseId;
+    }
+
+    public void setSystemPromptDatabaseId(Long systemPromptDatabaseId) {
+        this.systemPromptDatabaseId = systemPromptDatabaseId;
     }
 
     public LocalDateTime getCreatedAt() {

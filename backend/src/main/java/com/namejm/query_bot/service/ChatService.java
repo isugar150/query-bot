@@ -66,18 +66,12 @@ public class ChatService {
         userMessage.setRole(MessageRole.USER);
         userMessage.setContent(request.message());
 
-        // Build system prompt once per session and reuse to avoid re-sending schema on every turn.
-        String systemPrompt = session.getSystemPrompt();
-        boolean promptUpdated = false;
-        if (systemPrompt == null || systemPrompt.isBlank()) {
-            SchemaOverview schema = loadSchema(database);
-            systemPrompt = buildSystemPrompt(schema);
-            session.setSystemPrompt(systemPrompt);
-            promptUpdated = true;
-        }
-        if (promptUpdated) {
-            chatSessionRepository.save(session);
-        }
+        // Always rebuild the system prompt from the selected database to avoid stale schemas leaking across DBs.
+        SchemaOverview schema = databaseService.fetchLiveSchema(database);
+        String systemPrompt = buildSystemPrompt(schema);
+        session.setSystemPrompt(systemPrompt);
+        session.setSystemPromptDatabaseId(database.getId());
+        chatSessionRepository.save(session);
 
         List<ChatMessage> promptHistory = new ArrayList<>(priorHistory);
         promptHistory.add(userMessage);

@@ -71,6 +71,19 @@ public class DatabaseService {
         return metadataService.fetchAndThrow(request);
     }
 
+    public SchemaOverview fetchLiveSchema(DatabaseConnection db) throws Exception {
+        DbConnectionRequest req = new DbConnectionRequest(
+                db.getName(),
+                db.getDbType(),
+                db.getHost(),
+                db.getPort(),
+                db.getDatabaseName(),
+                db.getUsername(),
+                db.getPassword()
+        );
+        return metadataService.fetchAndThrow(req);
+    }
+
     @Transactional
     public void deleteDatabase(Long id) {
         DatabaseConnection connection = repository.findById(id)
