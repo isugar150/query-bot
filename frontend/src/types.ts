@@ -43,6 +43,7 @@ export type ColumnOverview = {
 }
 
 export type TableOverview = {
+  schema: string
   name: string
   columns: ColumnOverview[]
   comment?: string | null
@@ -50,6 +51,7 @@ export type TableOverview = {
 
 export type SchemaOverview = {
   database: string
+  schemas: string[]
   tables: TableOverview[]
 }
 

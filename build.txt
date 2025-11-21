@@ -1,0 +1,3 @@
+docker rmi query-bot:latest
+docker build -t query-bot:latest .
+docker save -o querybot.tar query-bot:latest

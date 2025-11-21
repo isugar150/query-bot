@@ -168,8 +168,12 @@ export function OnboardingPage({ onComplete }: Props) {
                     </FormControl>
                   </HStack>
                   <FormControl>
-                    <FormLabel>DB 이름</FormLabel>
-                    <Input value={dbInfo.databaseName} onChange={(e) => updateDb({ databaseName: e.target.value })} />
+                    <FormLabel>DB 이름/스키마 (콤마 구분)</FormLabel>
+                    <Input
+                      value={dbInfo.databaseName}
+                      onChange={(e) => updateDb({ databaseName: e.target.value })}
+                      placeholder="app,public,analytics"
+                    />
                   </FormControl>
                   <HStack>
                     <FormControl>
@@ -196,7 +200,9 @@ export function OnboardingPage({ onComplete }: Props) {
                       </Text>
                       {testResult.schema.tables.slice(0, 5).map((table) => (
                         <Box key={table.name} mb={2}>
-                          <Text fontWeight="bold">{table.name}</Text>
+                          <Text fontWeight="bold">
+                            {table.schema}.{table.name}
+                          </Text>
                           <Text fontSize="xs" color="gray.300">
                             {table.columns.map((c) => `${c.name} (${c.type})`).join(', ')}
                           </Text>

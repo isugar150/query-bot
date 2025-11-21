@@ -226,12 +226,18 @@ public class ChatService {
         builder.append("You are a SQL expert for the following database. ")
                 .append("Use ONLY the provided schema. If the question is ambiguous, ask for clarification in Korean. ")
                 .append("When the query is unambiguous and valid, respond with the SQL only. ")
+                .append("Always include the schema prefix (schema.table) for every table reference. ")
                 .append("Return exactly one SELECT statement (no multiple statements like `SELECT 1; SELECT 2;`). ")
+                .append("Pay close attention to table/column comments; prefer tables whose comments match the request and ignore unrelated tables even if they look similar. ")
                 .append("Never invent tables or columns; before answering, verify every table/column you reference exists in the schema below. ")
                 .append("If the user asks for a table or column that is not listed, reply in Korean that the table/column does not exist and ask them to choose from the provided schema instead of generating a query.\n\n");
-        builder.append("Database: ").append(schema.database()).append("\n");
+        builder.append("Database: ").append(schema.database());
+        if (schema.schemas() != null && !schema.schemas().isEmpty()) {
+            builder.append(" (schemas: ").append(String.join(", ", schema.schemas())).append(")");
+        }
+        builder.append("\n");
         for (var table : schema.tables()) {
-            builder.append("- ").append(table.name());
+            builder.append("- ").append(table.schema()).append(".").append(table.name());
             if (table.comment() != null && !table.comment().isBlank()) {
                 builder.append(" -- ").append(table.comment());
             }

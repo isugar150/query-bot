@@ -530,12 +530,13 @@ export function ChatPage({ user }: Props) {
                   </Select>
                 </FormControl>
                 <FormControl>
-                  <FormLabel>DB 이름</FormLabel>
+                  <FormLabel>DB 이름/스키마 (콤마 구분)</FormLabel>
                   <Input
                     value={dbForm.databaseName}
                     onChange={(e) =>
                       updateDbForm({ databaseName: e.target.value })
                     }
+                    placeholder="app,public,analytics"
                   />
                 </FormControl>
                 <FormControl>

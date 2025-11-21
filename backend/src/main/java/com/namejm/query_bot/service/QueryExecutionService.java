@@ -63,12 +63,21 @@ public class QueryExecutionService {
     }
 
     private Connection openConnection(DatabaseConnection db) throws Exception {
-        String jdbcUrl = "jdbc:" + db.getDbType().getJdbcName() + "://" + db.getHost() + ":" + db.getPort() + "/" + db.getDatabaseName();
+        String primaryDb = parseDatabaseName(db.getDatabaseName());
+        String jdbcUrl = "jdbc:" + db.getDbType().getJdbcName() + "://" + db.getHost() + ":" + db.getPort() + "/" + primaryDb;
         Properties props = new Properties();
         props.setProperty("user", db.getUsername());
         props.setProperty("password", db.getPassword());
         props.setProperty("remarksReporting", "true");
         props.setProperty("useInformationSchema", "true");
         return DriverManager.getConnection(jdbcUrl, props);
+    }
+
+    private String parseDatabaseName(String raw) {
+        int idx = raw.indexOf(',');
+        if (idx < 0) {
+            return raw.trim();
+        }
+        return raw.substring(0, idx).trim();
     }
 }
