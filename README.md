@@ -2,6 +2,9 @@
 
 스키마 정보를 학습한 AI가 SQL을 작성·검증하고, 읽기 전용 쿼리를 실행할 수 있는 서비스입니다. Spring Boot 기반 백엔드와 React + Chakra UI 프론트엔드로 구성됩니다.
 
+## 스크린샷
+<img width="1251" height="910" alt="스크린샷 2025-11-21 142659" src="https://github.com/user-attachments/assets/0418540c-e610-4054-8add-f002f758f0d2" />
+
 ## 주요 기술 스택
 - 백엔드: Java 17, Spring Boot, JPA (SQLite 메타데이터), REST API
 - 프론트엔드: React 19, TypeScript, Vite, Chakra UI, Zustand
