@@ -243,25 +243,19 @@ export function ChatPage({ user }: Props) {
   };
 
   const formatDate = (val: string) => {
-    const [datePart, timePart] = val.split("T");
-    if (datePart && timePart) {
-      const [year, month, day] = datePart.split("-").map((v) => Number(v) || 0);
-      const [hStr = "0", mStr = "0", sSection = "0"] = timePart.replace("Z", "").split(":");
-      const [sStr, msStr] = sSection.split(".");
-      const date = new Date(
-        year,
-        (month || 1) - 1,
-        day || 1,
-        Number(hStr) || 0,
-        Number(mStr) || 0,
-        Number(sStr) || 0,
-        msStr ? Number(`0.${msStr}`) * 1000 : 0,
-      );
-      if (!Number.isNaN(date.getTime())) {
-        return date.toLocaleTimeString();
-      }
-    }
-    return new Date(val).toLocaleTimeString();
+    const iso = /[zZ]|[+\-]\d{2}:?\d{2}$/.test(val) ? val : `${val}Z`;
+
+    const date = new Date(iso);
+
+    return date.toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
   };
 
   const isReadOnlyQuery = (query: string) => {
@@ -269,7 +263,8 @@ export function ChatPage({ user }: Props) {
       .split(";")
       .map((s) => s.trim())
       .filter(Boolean);
-    const forbidden = /^(insert|update|delete|create|alter|drop|truncate|merge|replace)\b/i;
+    const forbidden =
+      /^(insert|update|delete|create|alter|drop|truncate|merge|replace)\b/i;
     return statements.every(
       (stmt) => !forbidden.test(stmt) && /^(select|with)\b/i.test(stmt),
     );
