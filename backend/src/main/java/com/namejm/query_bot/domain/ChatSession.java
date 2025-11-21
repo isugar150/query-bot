@@ -28,6 +28,9 @@ public class ChatSession {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(columnDefinition = "TEXT")
+    private String systemPrompt;
+
     @PrePersist
     public void onCreate() {
         createdAt = LocalDateTime.now();
@@ -51,6 +54,14 @@ public class ChatSession {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getSystemPrompt() {
+        return systemPrompt;
+    }
+
+    public void setSystemPrompt(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
     }
 
     public LocalDateTime getCreatedAt() {

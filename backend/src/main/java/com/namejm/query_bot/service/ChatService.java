@@ -58,7 +58,6 @@ public class ChatService {
         }
 
         ChatSession session = resolveSession(request, database);
-        SchemaOverview schema = loadSchema(database);
 
         List<ChatMessage> priorHistory = chatMessageRepository.findBySessionOrderByCreatedAtAsc(session);
 
@@ -67,9 +66,17 @@ public class ChatService {
         userMessage.setRole(MessageRole.USER);
         userMessage.setContent(request.message());
 
+        // Build system prompt once per session and reuse to avoid re-sending schema on every turn.
+        String systemPrompt = session.getSystemPrompt();
+        if (systemPrompt == null || systemPrompt.isBlank()) {
+            SchemaOverview schema = loadSchema(database);
+            systemPrompt = buildSystemPrompt(schema);
+            session.setSystemPrompt(systemPrompt);
+        }
+
         List<ChatMessage> promptHistory = new ArrayList<>(priorHistory);
         promptHistory.add(userMessage);
-        String reply = generateAnswer(promptHistory, schema);
+        String reply = generateAnswer(promptHistory, systemPrompt);
 
         ChatMessage assistantMessage = new ChatMessage();
         assistantMessage.setSession(session);
@@ -177,7 +184,7 @@ public class ChatService {
         return objectMapper.readValue(databaseConnection.getSchemaJson(), SchemaOverview.class);
     }
 
-    private String generateAnswer(List<ChatMessage> history, SchemaOverview schema) throws Exception {
+    private String generateAnswer(List<ChatMessage> history, String systemPrompt) throws Exception {
         if (appProperties.getOpenai().getApiKey() == null || appProperties.getOpenai().getApiKey().isBlank()) {
             return "OPENAI_API_KEY가 설정되지 않아 예시 답변을 반환합니다.\n--\nSELECT * FROM sample_table WHERE condition;";
         }
@@ -185,7 +192,7 @@ public class ChatService {
         List<Map<String, String>> messages = new ArrayList<>();
         messages.add(Map.of(
                 "role", "system",
-                "content", systemPrompt(schema)
+                "content", systemPrompt
         ));
         for (ChatMessage msg : history) {
             messages.add(Map.of(
@@ -211,12 +218,14 @@ public class ChatService {
         return response.choices().get(0).message().content();
     }
 
-    private String systemPrompt(SchemaOverview schema) {
+    private String buildSystemPrompt(SchemaOverview schema) {
         StringBuilder builder = new StringBuilder();
         builder.append("You are a SQL expert for the following database. ")
                 .append("Use ONLY the provided schema. If the question is ambiguous, ask for clarification in Korean. ")
                 .append("When the query is unambiguous and valid, respond with the SQL only. ")
-                .append("Return exactly one SELECT statement (no multiple statements like `SELECT 1; SELECT 2;`).\n\n");
+                .append("Return exactly one SELECT statement (no multiple statements like `SELECT 1; SELECT 2;`). ")
+                .append("Never invent tables or columns; before answering, verify every table/column you reference exists in the schema below. ")
+                .append("If the user asks for a table or column that is not listed, reply in Korean that the table/column does not exist and ask them to choose from the provided schema instead of generating a query.\n\n");
         builder.append("Database: ").append(schema.database()).append("\n");
         for (var table : schema.tables()) {
             builder.append("- ").append(table.name());
