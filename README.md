@@ -1,6 +1,6 @@
 # Query Bot
 
-스키마 정보를 학습한 AI가 SQL을 작성·검증하고, 읽기 전용 쿼리를 실행할 수 있는 서비스입니다. Spring Boot 기반 백엔드와 React + Chakra UI 프론트엔드로 구성됩니다.
+스키마 정보를 학습한 AI가 SQL을 작성·검증하고, 읽기 전용 쿼리를 실행할 수 있는 서비스입니다.
 
 ## 스크린샷
 <img width="1251" height="910" alt="517218782-0418540c-e610-4054-8add-f002f758f0d2" src="https://github.com/user-attachments/assets/365376f4-ac2c-48c7-99fb-7fb9941b362d" />
@@ -8,7 +8,7 @@
 ## 주요 기술 스택
 - 백엔드: Java 17, Spring Boot, JPA (SQLite 메타데이터), REST API
 - 프론트엔드: React 19, TypeScript, Vite, Chakra UI, Zustand
-- 컨테이너: Docker + docker-compose (nginx 역방향 프록시, 기본 포트 5213)
+- 컨테이너: Docker + docker-compose (기본 포트 5213)
 
 ## 레포지토리 구조
 - `backend/` - API, 인증, DB 메타데이터, 챗/쿼리 실행 로직
@@ -50,7 +50,7 @@ npm run dev                      # Vite 개발 서버 (기본 포트 5173)
 npm run build                    # 타입 체크 및 프로덕션 빌드
 ```
 
-## Docker (풀스택)
+## Docker
 ```bash
 docker compose up --build
 ```
