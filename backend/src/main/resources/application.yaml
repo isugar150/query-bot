@@ -17,6 +17,7 @@ spring:
   jackson:
     serialization:
       indent_output: true
+    time-zone: Asia/Seoul
 
 app:
   security:

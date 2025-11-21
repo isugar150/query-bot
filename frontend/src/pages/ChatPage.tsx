@@ -218,9 +218,12 @@ export function ChatPage({ user }: Props) {
       toast({ title: "DB를 먼저 선택하세요.", status: "warning" });
       return;
     }
-    const isSelect = /^\s*select\b/i.test(sql);
-    if (!isSelect) {
-      toast({ title: "SELECT 쿼리만 실행할 수 있습니다.", status: "warning" });
+    if (!isReadOnlyQuery(sql)) {
+      toast({
+        title: "데이터 조회 쿼리만 실행할 수 있습니다.",
+        description: "INSERT/UPDATE/DELETE/DDL 쿼리는 실행이 차단됩니다.",
+        status: "warning",
+      });
       return;
     }
     setExecLoading(true);
@@ -239,7 +242,38 @@ export function ChatPage({ user }: Props) {
     }
   };
 
-  const formatDate = (val: string) => new Date(val).toLocaleTimeString();
+  const formatDate = (val: string) => {
+    const [datePart, timePart] = val.split("T");
+    if (datePart && timePart) {
+      const [year, month, day] = datePart.split("-").map((v) => Number(v) || 0);
+      const [hStr = "0", mStr = "0", sSection = "0"] = timePart.replace("Z", "").split(":");
+      const [sStr, msStr] = sSection.split(".");
+      const date = new Date(
+        year,
+        (month || 1) - 1,
+        day || 1,
+        Number(hStr) || 0,
+        Number(mStr) || 0,
+        Number(sStr) || 0,
+        msStr ? Number(`0.${msStr}`) * 1000 : 0,
+      );
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleTimeString();
+      }
+    }
+    return new Date(val).toLocaleTimeString();
+  };
+
+  const isReadOnlyQuery = (query: string) => {
+    const statements = query
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const forbidden = /^(insert|update|delete|create|alter|drop|truncate|merge|replace)\b/i;
+    return statements.every(
+      (stmt) => !forbidden.test(stmt) && /^(select|with)\b/i.test(stmt),
+    );
+  };
 
   const handleDbTest = async () => {
     setDbTesting(true);
@@ -640,8 +674,7 @@ export function ChatPage({ user }: Props) {
             <Stack spacing={4} maxH="50vh" overflowY="auto" pr={2}>
               {messages.map((msg, idx) => {
                 const isAssistant = msg.role === "ASSISTANT";
-                const isSelect = /^\s*select\b/i.test(msg.content);
-                const isWith = /^\s*with\b/i.test(msg.content);
+                const isRunnable = isReadOnlyQuery(msg.content);
                 return (
                   <Box
                     key={idx}
@@ -658,7 +691,7 @@ export function ChatPage({ user }: Props) {
                         {msg.role === "USER" ? "나" : "AI"}
                       </Badge>
                       <HStack spacing={2}>
-                        {isAssistant && (isSelect || isWith) && (
+                        {isAssistant && isRunnable && (
                           <Button
                             size="xs"
                             variant="outline"

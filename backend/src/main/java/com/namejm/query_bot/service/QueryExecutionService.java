@@ -18,7 +18,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class QueryExecutionService {
 
-    private static final Pattern SELECT_PATTERN = Pattern.compile("^\\s*select\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern READ_ONLY_PATTERN =
+            Pattern.compile("^\\s*(select|with)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FORBIDDEN_PATTERN = Pattern.compile(
+            "^\\s*(insert|update|delete|create|alter|drop|truncate|merge|replace)\\b",
+            Pattern.CASE_INSENSITIVE);
 
     private final DatabaseConnectionRepository databaseConnectionRepository;
 
@@ -35,8 +39,8 @@ public class QueryExecutionService {
         if (trimmed.endsWith(";")) {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
-        if (!SELECT_PATTERN.matcher(trimmed).find()) {
-            throw new IllegalArgumentException("SELECT 쿼리만 실행할 수 있습니다.");
+        if (!isReadOnly(trimmed)) {
+            throw new IllegalArgumentException("데이터 조회 쿼리만 실행할 수 있습니다.");
         }
 
         String wrapped = "SELECT * FROM (" + trimmed + ") AS qbot_sub LIMIT 100";
@@ -79,5 +83,24 @@ public class QueryExecutionService {
             return raw.trim();
         }
         return raw.substring(0, idx).trim();
+    }
+
+    private boolean isReadOnly(String sql) {
+        String[] statements = sql.split(";");
+        boolean hasRead = false;
+        for (String statement : statements) {
+            String stmt = statement.trim();
+            if (stmt.isEmpty()) {
+                continue;
+            }
+            if (FORBIDDEN_PATTERN.matcher(stmt).find()) {
+                return false;
+            }
+            if (!READ_ONLY_PATTERN.matcher(stmt).find()) {
+                return false;
+            }
+            hasRead = true;
+        }
+        return hasRead;
     }
 }
