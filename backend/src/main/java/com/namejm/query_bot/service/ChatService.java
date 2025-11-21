@@ -68,10 +68,15 @@ public class ChatService {
 
         // Build system prompt once per session and reuse to avoid re-sending schema on every turn.
         String systemPrompt = session.getSystemPrompt();
+        boolean promptUpdated = false;
         if (systemPrompt == null || systemPrompt.isBlank()) {
             SchemaOverview schema = loadSchema(database);
             systemPrompt = buildSystemPrompt(schema);
             session.setSystemPrompt(systemPrompt);
+            promptUpdated = true;
+        }
+        if (promptUpdated) {
+            chatSessionRepository.save(session);
         }
 
         List<ChatMessage> promptHistory = new ArrayList<>(priorHistory);
@@ -145,7 +150,11 @@ public class ChatService {
         if (request.sessionId() != null) {
             Optional<ChatSession> existing = chatSessionRepository.findById(request.sessionId());
             if (existing.isPresent()) {
-                return existing.get();
+                ChatSession session = existing.get();
+                if (!session.getDatabaseConnection().getId().equals(database.getId())) {
+                    throw new IllegalArgumentException("선택한 세션이 현재 데이터베이스와 일치하지 않습니다.");
+                }
+                return session;
             }
         }
         ChatSession session = new ChatSession();
