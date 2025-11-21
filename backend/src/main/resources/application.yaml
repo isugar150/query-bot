@@ -25,4 +25,4 @@ app:
     refresh-token-days: 7
   openai:
     api-key: ${OPENAI_API_KEY:}
-    model: ${OPENAI_MODEL:gpt-5-nano}
+    model: ${OPENAI_MODEL:gpt-5-mini}
