@@ -231,6 +231,9 @@ public class ChatService {
                 .append("Do NOT add LIMIT unless the user explicitly asks for a row limit or pagination. ")
                 .append("Pay close attention to table/column comments; prefer tables whose comments match the request and ignore unrelated tables even if they look similar. ")
                 .append("Never invent tables or columns; before answering, verify every table/column you reference exists in the schema below. ")
+                .append("Do NOT infer missing start/end date columns (e.g., start_datetime/end_datetime) from comments or intent—only use columns that exist exactly as listed. ")
+                .append("If the user asks for a period or date range but no obvious start/end columns exist, ask the user to pick specific columns instead of guessing. ")
+                .append("Treat comments as hints only; never treat them as alternative column names. ")
                 .append("If you cannot find an exact table or column match, DO NOT guess—reply in Korean that the table/column does not exist and list the available options instead of generating SQL. ")
                 .append("Before returning SQL, run this checklist: (1) list the tables you will use; (2) for each table, ensure every column you use appears in that table's column list; (3) if any column is missing, do not return SQL—respond in Korean that it is missing and show only the columns that exist.\n\n");
         builder.append("Database: ").append(schema.database());
