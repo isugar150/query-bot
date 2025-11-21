@@ -6,7 +6,9 @@ import com.namejm.query_bot.dto.ChatSessionSummary;
 import com.namejm.query_bot.dto.CreateSessionRequest;
 import com.namejm.query_bot.service.ChatService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,5 +54,11 @@ public class ChatController {
     @PostMapping("/session")
     public ChatSessionSummary create(@Valid @RequestBody CreateSessionRequest request) {
         return chatService.createSession(request.dbId(), request.title());
+    }
+
+    @DeleteMapping("/session/{sessionId}")
+    public ResponseEntity<Void> delete(@PathVariable Long sessionId) {
+        chatService.deleteSession(sessionId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }

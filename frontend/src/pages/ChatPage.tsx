@@ -329,6 +329,38 @@ export function ChatPage({ user }: Props) {
     setMessages([]);
   };
 
+  const handleSessionDelete = async () => {
+    if (!sessionId) {
+      toast({ title: "삭제할 세션을 선택하세요.", status: "warning" });
+      return;
+    }
+    const target = sessions.find((s) => s.id === sessionId);
+    const ok = window.confirm(
+      `'${target?.title ?? "선택된 세션"}'을 삭제하시겠습니까? 대화 내용이 모두 삭제됩니다.`,
+    );
+    if (!ok) return;
+    try {
+      await ChatApi.deleteSession(sessionId);
+      const remaining = sessions.filter((s) => s.id !== sessionId);
+      setSessions(remaining);
+      if (remaining[0]) {
+        const nextId = remaining[0].id;
+        setSessionId(nextId);
+        await loadHistory(nextId);
+      } else {
+        setSessionId(undefined);
+        setMessages([]);
+      }
+      toast({ title: "세션 삭제 완료", status: "success" });
+    } catch (err: unknown) {
+      toast({
+        title: "세션 삭제 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
+    }
+  };
+
   return (
     <Stack spacing={6}>
       <Flex justify="space-between" align="center">
@@ -421,6 +453,9 @@ export function ChatPage({ user }: Props) {
                   <MenuList>
                     {selectedDb ? (
                       <>
+                        <MenuItem onClick={handleSessionDelete} color="red.400">
+                          선텍 세션 삭제
+                        </MenuItem>
                         <MenuItem
                           icon={<FiRefreshCw />}
                           onClick={async () => {

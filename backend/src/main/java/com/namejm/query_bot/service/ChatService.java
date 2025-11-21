@@ -125,6 +125,15 @@ public class ChatService {
         return new ChatSessionSummary(created.getId(), dbId, created.getTitle(), created.getCreatedAt());
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteSession(Long sessionId) {
+        ChatSession session = chatSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다."));
+        // Remove messages first to avoid orphan records.
+        chatMessageRepository.deleteAllBySession(session);
+        chatSessionRepository.delete(session);
+    }
+
     private ChatSession resolveSession(ChatRequest request, DatabaseConnection database) {
         if (request.sessionId() != null) {
             Optional<ChatSession> existing = chatSessionRepository.findById(request.sessionId());
@@ -207,7 +216,7 @@ public class ChatService {
         builder.append("You are a SQL expert for the following database. ")
                 .append("Use ONLY the provided schema. If the question is ambiguous, ask for clarification in Korean. ")
                 .append("When the query is unambiguous and valid, respond with the SQL only. ")
-                .append("Any SELECT statement you return must limit results to a single row (e.g., LIMIT 1 or FETCH FIRST 1 ROW ONLY depending on dialect).\n\n");
+                .append("Return exactly one SELECT statement (no multiple statements like `SELECT 1; SELECT 2;`).\n\n");
         builder.append("Database: ").append(schema.database()).append("\n");
         for (var table : schema.tables()) {
             builder.append("- ").append(table.name());

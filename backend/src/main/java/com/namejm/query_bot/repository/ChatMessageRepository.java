@@ -7,5 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
     List<ChatMessage> findBySessionOrderByCreatedAtAsc(ChatSession session);
+    void deleteAllBySession(ChatSession session);
     void deleteAllBySessionIn(List<ChatSession> sessions);
 }

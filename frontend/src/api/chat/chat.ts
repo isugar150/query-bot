@@ -22,4 +22,7 @@ export const ChatApi = {
     const res = await apiClient.post<ChatSession>('/chat/session', payload)
     return res.data
   },
+  deleteSession: async (sessionId: number) => {
+    await apiClient.delete(`/chat/session/${sessionId}`)
+  },
 }
