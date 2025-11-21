@@ -622,11 +622,9 @@ export function ChatPage({ user }: Props) {
           <VStack align="stretch" spacing={4}>
             <Box bg="blackAlpha.500" borderRadius="md" p={3}>
               <Text color="gray.200" fontSize="sm">
-                각 SQL 질의 의도마다 하나의 세션만 사용하십시오. 새로운 질문은
-              </Text>
-              <Text color="gray.200" fontSize="sm">
-                상단의 ‘새 대화’ 버튼을 클릭해 시작하며, 데이터베이스 정보가
-                변경된 경우 우측 ‘더보기’에서 동기화하십시오.
+                새로운 질문은 상단의 ‘새 대화’ 버튼을 클릭해 시작하며,
+                데이터베이스 정보가 변경된 경우 우측 ‘더보기’에서
+                동기화하십시오.
               </Text>
             </Box>
             <Stack spacing={4} maxH="50vh" overflowY="auto" pr={2}>
