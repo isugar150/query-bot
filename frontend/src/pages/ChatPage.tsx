@@ -31,7 +31,7 @@ import {
 } from "@chakra-ui/react";
 import { FiArrowRight, FiPlus, FiRefreshCw } from "react-icons/fi";
 import { LuChevronDown } from "react-icons/lu";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatApi } from "../api/chat/chat";
 import { DbApi } from "../api/db/db";
 import { useAuthStore } from "../store/auth";
@@ -81,6 +81,7 @@ export function ChatPage({ user }: Props) {
     columns: string[];
     rows: (string | number | boolean | null)[][];
   } | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const {
     isOpen: isResultOpen,
     onOpen: openResult,
@@ -286,6 +287,10 @@ export function ChatPage({ user }: Props) {
   const updateDbForm = (patch: Partial<DbConnectionRequest>) =>
     setDbForm({ ...dbForm, ...patch });
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, aiTyping]);
+
   const handleDbDelete = async () => {
     if (!selectedDb) {
       toast({ title: "삭제할 DB를 선택하세요.", status: "warning" });
@@ -430,7 +435,12 @@ export function ChatPage({ user }: Props) {
                 <Select
                   value={sessionId ?? ""}
                   onChange={async (e) => {
-                    const sid = Number(e.target.value);
+                    const value = e.target.value;
+                    if (!value) {
+                      createNewSession();
+                      return;
+                    }
+                    const sid = Number(value);
                     setSessionId(sid);
                     if (sid) {
                       await loadHistory(sid);
@@ -688,6 +698,7 @@ export function ChatPage({ user }: Props) {
                   <Text color="gray.300">AI가 답변을 생성하고 있습니다...</Text>
                 </Box>
               )}
+              <Box ref={messagesEndRef} />
             </Stack>
             <Divider />
             <Textarea
