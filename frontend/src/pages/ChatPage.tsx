@@ -69,6 +69,7 @@ export function ChatPage({ user }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [aiTyping, setAiTyping] = useState(false);
 
   const { isOpen, onToggle, onClose } = useDisclosure();
   const [dbForm, setDbForm] = useState<DbConnectionRequest>(emptyDbForm);
@@ -176,6 +177,15 @@ export function ChatPage({ user }: Props) {
       return;
     }
     setSending(true);
+    setAiTyping(true);
+    const optimisticUser: ChatMessage = {
+      role: "USER",
+      content: input,
+      createdAt: new Date().toISOString(),
+    };
+    const previousMessages = messages;
+    setMessages([...messages, optimisticUser]);
+    setInput("");
     const isNewSession = !sessionId;
     try {
       const res = await ChatApi.ask({
@@ -185,11 +195,12 @@ export function ChatPage({ user }: Props) {
       });
       setMessages(res.history);
       setSessionId(res.sessionId);
-      setInput("");
       if (isNewSession) {
         await refreshSessions(selectedDb);
       }
     } catch (err: unknown) {
+      // Rollback optimistic message on failure
+      setMessages(previousMessages);
       toast({
         title: "질문 전송 실패",
         description: extractErrorMessage(err),
@@ -197,6 +208,7 @@ export function ChatPage({ user }: Props) {
       });
     } finally {
       setSending(false);
+      setAiTyping(false);
     }
   };
 
@@ -663,6 +675,23 @@ export function ChatPage({ user }: Props) {
                   </Box>
                 );
               })}
+              {aiTyping && (
+                <Box
+                  bg="gray.800"
+                  borderRadius="md"
+                  p={3}
+                  borderWidth="1px"
+                  borderColor="whiteAlpha.200"
+                >
+                  <HStack justify="space-between" mb={2}>
+                    <Badge colorScheme="purple">AI</Badge>
+                    <Text fontSize="xs" color="gray.400">
+                      답변 준비 중...
+                    </Text>
+                  </HStack>
+                  <Text color="gray.300">AI가 답변을 생성하고 있습니다...</Text>
+                </Box>
+              )}
             </Stack>
             <Divider />
             <Textarea
