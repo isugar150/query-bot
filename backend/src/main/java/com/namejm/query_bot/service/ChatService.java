@@ -206,7 +206,8 @@ public class ChatService {
         StringBuilder builder = new StringBuilder();
         builder.append("You are a SQL expert for the following database. ")
                 .append("Use ONLY the provided schema. If the question is ambiguous, ask for clarification in Korean. ")
-                .append("When the query is unambiguous and valid, respond with the SQL only.\n\n");
+                .append("When the query is unambiguous and valid, respond with the SQL only. ")
+                .append("Any SELECT statement you return must limit results to a single row (e.g., LIMIT 1 or FETCH FIRST 1 ROW ONLY depending on dialect).\n\n");
         builder.append("Database: ").append(schema.database()).append("\n");
         for (var table : schema.tables()) {
             builder.append("- ").append(table.name());
