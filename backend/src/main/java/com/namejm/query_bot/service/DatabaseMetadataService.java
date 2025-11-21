@@ -11,8 +11,10 @@ import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -58,24 +60,29 @@ public class DatabaseMetadataService {
 
     private SchemaOverview extractSchema(Connection connection, DbConnectionRequest request) throws Exception {
         DatabaseMetaData metaData = connection.getMetaData();
-        List<String> targetSchemas = parseSchemas(request.databaseName());
         String primaryDb = parseDatabaseName(request.databaseName());
-        if (targetSchemas.isEmpty()) {
-            targetSchemas.add(primaryDb);
-        } else if (request.dbType() != DatabaseType.POSTGRESQL && !targetSchemas.contains(primaryDb)) {
-            targetSchemas.add(0, primaryDb);
-        }
+        List<String> targetSchemas = resolveSchemas(request.dbType(), request.databaseName(), primaryDb);
+        Set<String> discoveredSchemas = new LinkedHashSet<>();
         List<TableOverview> tables = new ArrayList<>();
         for (String schemaName : targetSchemas) {
-            // MySQL/MariaDB treat catalog as database. PostgreSQL uses schemaPattern.
-            String catalog = request.dbType() == DatabaseType.POSTGRESQL ? null : schemaName;
-            String schemaPattern = request.dbType() == DatabaseType.POSTGRESQL ? schemaName : null;
+            // For PostgreSQL: catalog is the database, schemaPattern can be null to fetch all; when schemaName is "%" we fetch all schemas.
+            boolean fetchAllPgSchemas = request.dbType() == DatabaseType.POSTGRESQL && "%".equals(schemaName);
+            String catalog = request.dbType() == DatabaseType.POSTGRESQL ? primaryDb : schemaName;
+            String schemaPattern = request.dbType() == DatabaseType.POSTGRESQL
+                    ? (fetchAllPgSchemas ? null : schemaName)
+                    : null;
+
             try (ResultSet tableRs = metaData.getTables(catalog, schemaPattern, "%", new String[]{"TABLE"})) {
                 while (tableRs.next()) {
+                    String actualSchema = tableRs.getString("TABLE_SCHEM");
+                    if (actualSchema == null || actualSchema.isBlank()) {
+                        actualSchema = schemaName;
+                    }
+                    discoveredSchemas.add(actualSchema);
                     String tableName = tableRs.getString("TABLE_NAME");
                     String tableComment = tableRs.getString("REMARKS");
                     List<ColumnOverview> columns = new ArrayList<>();
-                    try (ResultSet columnRs = metaData.getColumns(catalog, schemaPattern, tableName, "%")) {
+                    try (ResultSet columnRs = metaData.getColumns(catalog, actualSchema, tableName, "%")) {
                         while (columnRs.next()) {
                             String name = columnRs.getString("COLUMN_NAME");
                             String type = columnRs.getString("TYPE_NAME");
@@ -84,11 +91,12 @@ public class DatabaseMetadataService {
                             columns.add(new ColumnOverview(name, type, nullable, comment));
                         }
                     }
-                    tables.add(new TableOverview(schemaName, tableName, columns, tableComment));
+                    tables.add(new TableOverview(actualSchema, tableName, columns, tableComment));
                 }
             }
         }
-        return new SchemaOverview(primaryDb, targetSchemas, tables);
+        List<String> schemasForResponse = discoveredSchemas.isEmpty() ? targetSchemas : new ArrayList<>(discoveredSchemas);
+        return new SchemaOverview(primaryDb, schemasForResponse, tables);
     }
 
     private List<String> parseSchemas(String raw) {
@@ -103,11 +111,7 @@ public class DatabaseMetadataService {
         if (tokens.isEmpty()) {
             tokens.add(raw.trim());
         }
-        // First token is the primary database; remaining tokens are schemas. If only one token, use it as schema too.
-        if (tokens.size() == 1) {
-            return tokens;
-        }
-        return tokens.subList(1, tokens.size());
+        return tokens;
     }
 
     private String parseDatabaseName(String raw) {
@@ -116,5 +120,19 @@ public class DatabaseMetadataService {
             return raw.trim();
         }
         return raw.substring(0, idx).trim();
+    }
+
+    private List<String> resolveSchemas(DatabaseType dbType, String rawDatabase, String primaryDb) {
+        List<String> tokens = parseSchemas(rawDatabase);
+        if (tokens.size() > 1) {
+            return tokens.subList(1, tokens.size());
+        }
+        // No schemas explicitly provided.
+        if (dbType == DatabaseType.POSTGRESQL) {
+            // Default: fetch all schemas in the database.
+            return List.of("%");
+        }
+        // For MySQL/MariaDB, schema == database.
+        return List.of(primaryDb);
     }
 }
