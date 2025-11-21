@@ -641,6 +641,7 @@ export function ChatPage({ user }: Props) {
               {messages.map((msg, idx) => {
                 const isAssistant = msg.role === "ASSISTANT";
                 const isSelect = /^\s*select\b/i.test(msg.content);
+                const isWith = /^\s*with\b/i.test(msg.content);
                 return (
                   <Box
                     key={idx}
@@ -657,7 +658,7 @@ export function ChatPage({ user }: Props) {
                         {msg.role === "USER" ? "나" : "AI"}
                       </Badge>
                       <HStack spacing={2}>
-                        {isAssistant && isSelect && (
+                        {isAssistant && (isSelect || isWith) && (
                           <Button
                             size="xs"
                             variant="outline"
@@ -675,6 +676,7 @@ export function ChatPage({ user }: Props) {
                     <Text
                       whiteSpace="pre-wrap"
                       fontFamily={isAssistant ? "mono" : "body"}
+                      wordBreak="break-word"
                     >
                       {msg.content}
                     </Text>
