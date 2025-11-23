@@ -1,3 +1,5 @@
+<img width="200" height="200" alt="icon (2)" src="https://github.com/user-attachments/assets/2f8e0b7b-0519-462f-af69-131afd45b70d" />
+
 # Query Bot
 
 Query Bot은 스키마 정보를 사전에 학습한 AI가 사용자의 자연어 입력을 기반으로 SQL을 자동 생성·검증하며, 읽기 전용 쿼리를 안전하게 실행해 결과를 제공하는 서비스입니다.
