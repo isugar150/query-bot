@@ -28,6 +28,18 @@ import {
   MenuButton,
   MenuItem,
   MenuList,
+  AlertDialog,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
 } from "@chakra-ui/react";
 import { FiArrowRight, FiPlus, FiRefreshCw } from "react-icons/fi";
 import { LuChevronDown } from "react-icons/lu";
@@ -105,6 +117,16 @@ export function ChatPage({ user }: Props) {
     onClose: closeMetabaseConfirm,
   } = useDisclosure();
   const {
+    isOpen: isOverwriteConfirmOpen,
+    onOpen: openOverwriteConfirm,
+    onClose: closeOverwriteConfirm,
+  } = useDisclosure();
+  const {
+    isOpen: isMetabaseManageOpen,
+    onOpen: openMetabaseManage,
+    onClose: closeMetabaseManage,
+  } = useDisclosure();
+  const {
     isOpen: isMetabaseTitleOpen,
     onOpen: openMetabaseTitle,
     onClose: closeMetabaseTitle,
@@ -113,6 +135,7 @@ export function ChatPage({ user }: Props) {
   const [pendingMetabaseSql, setPendingMetabaseSql] = useState<string | null>(
     null,
   );
+  const overwriteCancelRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const fetchDbs = async () => {
@@ -328,8 +351,7 @@ export function ChatPage({ user }: Props) {
     }
     setPendingMetabaseSql(sql);
     if (metabaseCardId) {
-      // Update existing card; still show confirm modal after send.
-      void handleSendToMetabase(sql);
+      openMetabaseManage();
     } else {
       setMetabaseTitle("");
       openMetabaseTitle();
@@ -499,6 +521,29 @@ export function ChatPage({ user }: Props) {
     closeMetabaseTitle();
     setPendingMetabaseSql(null);
     setMetabaseTitle("");
+  };
+
+  const confirmOverwriteMetabase = async () => {
+    if (!pendingMetabaseSql) return;
+    closeMetabaseManage();
+    const ok = await handleSendToMetabase(pendingMetabaseSql);
+    if (ok) {
+      closeOverwriteConfirm();
+      setPendingMetabaseSql(null);
+    }
+  };
+
+  const openMetabaseFromManage = () => {
+    if (metabaseResult?.url) {
+      openMetabaseInNewTab();
+      closeMetabaseManage();
+      return;
+    }
+    toast({
+      title: "Metabase 링크를 찾을 수 없습니다.",
+      description: "쿼리를 다시 전송하면 새 링크를 받을 수 있습니다.",
+      status: "warning",
+    });
   };
 
   const openMetabaseInNewTab = () => {
@@ -878,7 +923,7 @@ export function ChatPage({ user }: Props) {
                     execLoading={execLoading}
                     showMetabase={metabaseAvailable || Boolean(metabaseCardId)}
                     metabaseLabel={
-                      metabaseCardId ? "쿼리 업데이트하기" : "쿼리 추가"
+                      metabaseCardId ? "쿼리 관리하기" : "쿼리 추가"
                     }
                     metabaseLoading={metabaseSending}
                     onMetabase={
@@ -957,6 +1002,63 @@ export function ChatPage({ user }: Props) {
         onClose={closeMetabaseDialog}
         onConfirm={openMetabaseInNewTab}
       />
+      <Modal
+        isOpen={isMetabaseManageOpen}
+        onClose={closeMetabaseManage}
+        isCentered
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Metabase 쿼리 관리</ModalHeader>
+          <ModalBody>어떤 작업을 진행할까요?</ModalBody>
+          <ModalFooter gap={3}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                closeMetabaseManage();
+                openOverwriteConfirm();
+              }}
+            >
+              쿼리 업데이트
+            </Button>
+            <Button variant="outline" onClick={openMetabaseFromManage}>
+              Metabase에서 보기
+            </Button>
+            <Button colorScheme="teal" onClick={closeMetabaseManage}>
+              닫기
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+      <AlertDialog
+        isOpen={isOverwriteConfirmOpen}
+        leastDestructiveRef={overwriteCancelRef}
+        onClose={closeOverwriteConfirm}
+        isCentered
+      >
+        <AlertDialogOverlay />
+        <AlertDialogContent>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">
+            Metabase 쿼리 덮어쓰기
+          </AlertDialogHeader>
+          <AlertDialogBody>
+            기존 추가한 쿼리가 덮어쓰기됩니다. 계속하시겠습니까?
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button ref={overwriteCancelRef} onClick={closeOverwriteConfirm}>
+              취소
+            </Button>
+            <Button
+              colorScheme="teal"
+              onClick={confirmOverwriteMetabase}
+              ml={3}
+              isLoading={metabaseSending}
+            >
+              덮어쓰기
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Stack>
   );
 }
