@@ -328,7 +328,7 @@ export function ChatPage({ user }: Props) {
     }
     setPendingMetabaseSql(sql);
     if (metabaseCardId) {
-      // Update existing card without prompting for a new title.
+      // Update existing card; still show confirm modal after send.
       void handleSendToMetabase(sql);
     } else {
       setMetabaseTitle("");

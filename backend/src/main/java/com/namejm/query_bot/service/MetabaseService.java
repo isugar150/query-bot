@@ -46,7 +46,7 @@ public class MetabaseService {
         ChatSession session = chatSessionRepository.findById(request.sessionId())
                 .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다."));
 
-        boolean isUpdate = session.getMetabaseCardId() != null;
+        boolean isUpdate = session.getMetabaseCardId() != null && cardExists(session.getMetabaseCardId());
 
         Map<String, Object> payload = new HashMap<>();
         String resolvedTitle = isUpdate
@@ -134,6 +134,35 @@ public class MetabaseService {
             return session.getTitle().trim();
         }
         return "새로운 쿼리";
+    }
+
+    public boolean cardExists(Long cardId) {
+        if (cardId == null) {
+            return false;
+        }
+        if (!isConfigured()) {
+            return true;
+        }
+        try {
+            ResponseEntity<String> response = client().get()
+                    .uri("/api/card/" + cardId)
+                    .headers(headers -> headers.set("x-api-key", appProperties.getMetabase().getApiKey()))
+                    .retrieve()
+                    .toEntity(String.class);
+            if (response.getStatusCode().value() == 404) {
+                return false;
+            }
+            if (response.getStatusCode().is2xxSuccessful()) {
+                return true;
+            }
+            log.warn("Metabase card exists check non-2xx status={} body={}", response.getStatusCode(), response.getBody());
+            return true; // avoid dropping id on transient errors
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound nf) {
+            return false;
+        } catch (Exception e) {
+            log.warn("Metabase card exists check failed for id={}", cardId, e);
+            return true; // avoid dropping reference on transient failures
+        }
     }
 
     private String fetchExistingCardTitle(Long cardId) {

@@ -36,14 +36,16 @@ public class ChatService {
     private final ObjectMapper objectMapper;
     private final AppProperties appProperties;
     private final RestClient restClient;
+    private final MetabaseService metabaseService;
 
     public ChatService(DatabaseService databaseService, ChatSessionRepository chatSessionRepository, ChatMessageRepository chatMessageRepository,
-                       ObjectMapper objectMapper, AppProperties appProperties) {
+                       ObjectMapper objectMapper, AppProperties appProperties, MetabaseService metabaseService) {
         this.databaseService = databaseService;
         this.chatSessionRepository = chatSessionRepository;
         this.chatMessageRepository = chatMessageRepository;
         this.objectMapper = objectMapper;
         this.appProperties = appProperties;
+        this.metabaseService = metabaseService;
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.openai.com/v1")
                 .build();
@@ -89,14 +91,16 @@ public class ChatService {
                 .map(msg -> new ChatMessageDto(msg.getRole(), msg.getContent(), msg.getCreatedAt()))
                 .toList();
 
-        return new ChatResponse(session.getId(), reply, historyDto, session.getMetabaseCardId());
+        Long cardId = ensureValidMetabaseCard(session);
+        return new ChatResponse(session.getId(), reply, historyDto, cardId);
     }
 
     public Optional<ChatResponse> history(Long sessionId) {
         return chatSessionRepository.findById(sessionId)
                 .map(session -> {
                     List<ChatMessageDto> history = historyForSession(session);
-                    return new ChatResponse(sessionId, "", history, session.getMetabaseCardId());
+                    Long cardId = ensureValidMetabaseCard(session);
+                    return new ChatResponse(sessionId, "", history, cardId);
                 });
     }
 
@@ -113,7 +117,7 @@ public class ChatService {
                         session.getId(),
                         "",
                         historyForSession(session),
-                        session.getMetabaseCardId()
+                        ensureValidMetabaseCard(session)
                 ));
     }
 
@@ -121,7 +125,7 @@ public class ChatService {
         DatabaseConnection db = databaseService.findById(dbId)
                 .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
         return chatSessionRepository.findByDatabaseConnectionOrderByCreatedAtDesc(db).stream()
-                .map(session -> new ChatSessionSummary(session.getId(), db.getId(), session.getTitle(), session.getCreatedAt(), session.getMetabaseCardId()))
+                .map(session -> new ChatSessionSummary(session.getId(), db.getId(), session.getTitle(), session.getCreatedAt(), ensureValidMetabaseCard(session)))
                 .toList();
     }
 
@@ -130,6 +134,20 @@ public class ChatService {
                 .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
         ChatSession created = createSession(db, title);
         return new ChatSessionSummary(created.getId(), dbId, created.getTitle(), created.getCreatedAt(), created.getMetabaseCardId());
+    }
+
+    private Long ensureValidMetabaseCard(ChatSession session) {
+        Long cardId = session.getMetabaseCardId();
+        if (cardId == null) {
+            return null;
+        }
+        boolean exists = metabaseService.cardExists(cardId);
+        if (exists) {
+            return cardId;
+        }
+        session.setMetabaseCardId(null);
+        chatSessionRepository.save(session);
+        return null;
     }
 
     @Transactional(rollbackFor = Exception.class)

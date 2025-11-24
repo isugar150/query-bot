@@ -5,8 +5,11 @@ import {
   HStack,
   Image,
   Text,
+  Show,
+  Tooltip,
 } from "@chakra-ui/react";
 import { FiCopy } from "react-icons/fi";
+import { FiPlay } from "react-icons/fi";
 import type { ChatMessage } from "../types";
 
 type Props = {
@@ -52,33 +55,80 @@ export function ChatMessageItem({
           {isAssistant && isRunnable && (
             <HStack spacing={1}>
               {showMetabase && (
+                <>
+                  <Show above="sm">
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      leftIcon={
+                        <Image
+                          src="/icon/metabase.png"
+                          alt="Metabase"
+                          boxSize="16px"
+                        />
+                      }
+                      isLoading={metabaseLoading}
+                      onClick={onMetabase}
+                    >
+                      {metabaseLabel}
+                    </Button>
+                  </Show>
+                  <Show below="sm">
+                    <Tooltip label={metabaseLabel}>
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        aria-label={metabaseLabel}
+                        isLoading={metabaseLoading}
+                        onClick={onMetabase}
+                      >
+                        <Image
+                          src="/icon/metabase.png"
+                          alt="Metabase"
+                          boxSize="16px"
+                        />
+                      </Button>
+                    </Tooltip>
+                  </Show>
+                </>
+              )}
+              <Show above="sm">
+                <Button size="xs" variant="outline" leftIcon={<FiCopy />} onClick={onCopy}>
+                  쿼리 복사
+                </Button>
                 <Button
                   size="xs"
                   variant="outline"
-                  leftIcon={
-                    <Image
-                      src="/icon/metabase.png"
-                      alt="Metabase"
-                      boxSize="16px"
-                    />
-                  }
-                  isLoading={metabaseLoading}
-                  onClick={onMetabase}
+                  isLoading={execLoading}
+                  leftIcon={<FiPlay />}
+                  onClick={onExecute}
                 >
-                  {metabaseLabel}
+                  실행 (최대 100건)
                 </Button>
-              )}
-              <Button size="xs" variant="outline" leftIcon={<FiCopy />} onClick={onCopy}>
-                쿼리 복사
-              </Button>
-              <Button
-                size="xs"
-                variant="outline"
-                isLoading={execLoading}
-                onClick={onExecute}
-              >
-                실행 (최대 100건)
-              </Button>
+              </Show>
+              <Show below="sm">
+                <Tooltip label="쿼리 복사">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    aria-label="쿼리 복사"
+                    onClick={onCopy}
+                  >
+                    <FiCopy />
+                  </Button>
+                </Tooltip>
+                <Tooltip label="실행 (최대 100건)">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    aria-label="실행"
+                    isLoading={execLoading}
+                    onClick={onExecute}
+                  >
+                    <FiPlay />
+                  </Button>
+                </Tooltip>
+              </Show>
             </HStack>
           )}
           <Text fontSize="xs" color="gray.400">
