@@ -29,7 +29,7 @@ import {
   MenuItem,
   MenuList,
 } from "@chakra-ui/react";
-import { FiArrowRight, FiPlus, FiRefreshCw } from "react-icons/fi";
+import { FiArrowRight, FiCopy, FiPlus, FiRefreshCw } from "react-icons/fi";
 import { LuChevronDown } from "react-icons/lu";
 import { useEffect, useRef, useState } from "react";
 import { ChatApi } from "../api/chat/chat";
@@ -239,6 +239,28 @@ export function ChatPage({ user }: Props) {
       });
     } finally {
       setExecLoading(false);
+    }
+  };
+
+  const handleCopyQuery = async (sql: string) => {
+    if (!navigator.clipboard) {
+      toast({
+        title: "복사할 수 없습니다.",
+        description: "브라우저가 클립보드 복사를 지원하지 않습니다.",
+        status: "warning",
+      });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(sql);
+      toast({ title: "쿼리를 복사했습니다.", status: "success", duration: 1500 });
+    } catch (err: unknown) {
+      const message = extractErrorMessage(err);
+      toast({
+        title: "복사 실패",
+        description: message || "클립보드 접근을 허용해주세요.",
+        status: "error",
+      });
     }
   };
 
@@ -687,14 +709,24 @@ export function ChatPage({ user }: Props) {
                       </Badge>
                       <HStack spacing={2}>
                         {isAssistant && isRunnable && (
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            isLoading={execLoading}
-                            onClick={() => handleExecute(msg.content)}
-                          >
-                            실행 (최대 100건)
-                          </Button>
+                          <HStack spacing={1}>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              leftIcon={<FiCopy />}
+                              onClick={() => handleCopyQuery(msg.content)}
+                            >
+                              쿼리 복사
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              isLoading={execLoading}
+                              onClick={() => handleExecute(msg.content)}
+                            >
+                              실행 (최대 100건)
+                            </Button>
+                          </HStack>
                         )}
                         <Text fontSize="xs" color="gray.400">
                           {formatDate(msg.createdAt)}

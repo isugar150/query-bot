@@ -7,7 +7,8 @@ services:
     environment:
       - JWT_SECRET=${JWT_SECRET:-change-me}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - OPENAI_MODEL=${SERVER_PORT:-gpt-5-mini}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - METABASE_API_KEY=${METABASE_API_KEY:-}
       - APP_DATA_DIR=${APP_DATA_DIR:-/app/data}
       - SERVER_PORT=${SERVER_PORT:-8080}
     env_file:
