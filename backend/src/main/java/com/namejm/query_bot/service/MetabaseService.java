@@ -91,7 +91,7 @@ public class MetabaseService {
         }
         session.setMetabaseCardId(response.id());
         chatSessionRepository.save(session);
-        String url = trimTrailingSlash(appProperties.getMetabase().getUrl()) + "/question/" + response.id();
+        String url = buildCardUrl(response.id());
         return new MetabaseQuestionResponse(response.id(), response.name(), url);
     }
 
@@ -196,6 +196,17 @@ public class MetabaseService {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
         return trimmed;
+    }
+
+    public String buildCardUrl(Long cardId) {
+        if (cardId == null) {
+            return null;
+        }
+        String base = trimTrailingSlash(appProperties.getMetabase().getUrl());
+        if (base.isBlank()) {
+            return null;
+        }
+        return base + "/question/" + cardId;
     }
 
     private ResponseEntity<String> sendMetabaseRequest(String path, boolean isUpdate, Map<String, Object> payload) {

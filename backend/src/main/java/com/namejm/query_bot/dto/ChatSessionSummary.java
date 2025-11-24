@@ -7,6 +7,7 @@ public record ChatSessionSummary(
         Long dbId,
         String title,
         LocalDateTime createdAt,
-        Long metabaseCardId
+        Long metabaseCardId,
+        String metabaseCardUrl
 ) {
 }

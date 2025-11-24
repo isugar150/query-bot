@@ -87,6 +87,7 @@ export function ChatPage({ user }: Props) {
   const [sending, setSending] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [metabaseCardId, setMetabaseCardId] = useState<number | undefined>();
+  const [metabaseCardUrl, setMetabaseCardUrl] = useState<string | undefined>();
 
   const { isOpen, onToggle, onClose } = useDisclosure();
   const [dbForm, setDbForm] = useState<DbConnectionRequest>(emptyDbForm);
@@ -174,11 +175,13 @@ export function ChatPage({ user }: Props) {
       setSessions(res);
       setSessionId(undefined);
       setMetabaseCardId(undefined);
+      setMetabaseCardUrl(undefined);
       setMessages([]);
     } catch (err: unknown) {
       setSessions([]);
       setSessionId(undefined);
       setMetabaseCardId(undefined);
+      setMetabaseCardUrl(undefined);
       setMessages([]);
       toast({
         title: "세션 목록을 불러오지 못했습니다",
@@ -194,10 +197,20 @@ export function ChatPage({ user }: Props) {
       const res = await ChatApi.history(session);
       setSessionId(res.sessionId);
       setMessages(res.history);
-      setMetabaseCardId(res.metabaseCardId ?? undefined);
+      const cardId = res.metabaseCardId ?? undefined;
+      const cardUrl = res.metabaseCardUrl ?? undefined;
+      setMetabaseCardId(cardId);
+      setMetabaseCardUrl(cardUrl);
+      if (cardId && cardUrl) {
+        setMetabaseResult({ id: cardId, url: cardUrl });
+      } else {
+        setMetabaseResult(null);
+      }
     } catch (err: unknown) {
       setMessages([]);
       setMetabaseCardId(undefined);
+      setMetabaseCardUrl(undefined);
+      setMetabaseResult(null);
       const message = extractErrorMessage(err);
       if (message && !/404/i.test(message)) {
         toast({
@@ -216,6 +229,7 @@ export function ChatPage({ user }: Props) {
       if (sessionId) {
         const current = res.find((s) => s.id === sessionId);
         setMetabaseCardId(current?.metabaseCardId ?? undefined);
+        setMetabaseCardUrl(current?.metabaseCardUrl ?? undefined);
       }
     } catch (err: unknown) {
       toast({
@@ -260,6 +274,13 @@ export function ChatPage({ user }: Props) {
       setMessages(res.history);
       setSessionId(res.sessionId);
       setMetabaseCardId(res.metabaseCardId ?? undefined);
+      setMetabaseCardUrl(res.metabaseCardUrl ?? undefined);
+      if (res.metabaseCardId && res.metabaseCardUrl) {
+        setMetabaseResult({
+          id: res.metabaseCardId,
+          url: res.metabaseCardUrl,
+        });
+      }
       if (isNewSession) {
         await refreshSessions(selectedDb);
       }
@@ -384,9 +405,12 @@ export function ChatPage({ user }: Props) {
       });
       setMetabaseResult({ id: res.id, url: res.url });
       setMetabaseCardId(res.id);
+      setMetabaseCardUrl(res.url);
       setSessions((prev) =>
         prev.map((s) =>
-          s.id === sessionId ? { ...s, metabaseCardId: res.id } : s,
+          s.id === sessionId
+            ? { ...s, metabaseCardId: res.id, metabaseCardUrl: res.url }
+            : s,
         ),
       );
       openMetabaseConfirm();
@@ -446,6 +470,15 @@ export function ChatPage({ user }: Props) {
     return statements.every(
       (stmt) => !forbidden.test(stmt) && /^(select|with)\b/i.test(stmt),
     );
+  };
+
+  const resolveMetabaseUrl = () => {
+    if (metabaseResult?.url) return metabaseResult.url;
+    if (metabaseCardUrl) return metabaseCardUrl;
+    const current = sessionId
+      ? sessions.find((s) => s.id === sessionId)
+      : undefined;
+    return current?.metabaseCardUrl ?? null;
   };
 
   const handleDbTest = async () => {
@@ -534,21 +567,23 @@ export function ChatPage({ user }: Props) {
   };
 
   const openMetabaseFromManage = () => {
-    if (metabaseResult?.url) {
-      openMetabaseInNewTab();
+    const url = resolveMetabaseUrl();
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
       closeMetabaseManage();
       return;
     }
     toast({
       title: "Metabase 링크를 찾을 수 없습니다.",
-      description: "쿼리를 다시 전송하면 새 링크를 받을 수 있습니다.",
+      description: "쿼리를 다시 전송하거나 서버 환경변수를 확인하세요.",
       status: "warning",
     });
   };
 
   const openMetabaseInNewTab = () => {
-    if (!metabaseResult?.url) return;
-    window.open(metabaseResult.url, "_blank", "noopener,noreferrer");
+    const url = resolveMetabaseUrl();
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
     closeMetabaseDialog();
   };
 
@@ -605,6 +640,8 @@ export function ChatPage({ user }: Props) {
     }
     setSessionId(undefined);
     setMetabaseCardId(undefined);
+    setMetabaseCardUrl(undefined);
+    setMetabaseResult(null);
     setMessages([]);
   };
 
@@ -626,10 +663,13 @@ export function ChatPage({ user }: Props) {
         const nextId = remaining[0].id;
         setSessionId(nextId);
         setMetabaseCardId(remaining[0].metabaseCardId ?? undefined);
+        setMetabaseCardUrl(remaining[0].metabaseCardUrl ?? undefined);
         await loadHistory(nextId);
       } else {
         setSessionId(undefined);
         setMetabaseCardId(undefined);
+        setMetabaseCardUrl(undefined);
+        setMetabaseResult(null);
         setMessages([]);
       }
       toast({ title: "세션 삭제 완료", status: "success" });
@@ -921,7 +961,11 @@ export function ChatPage({ user }: Props) {
                     onCopy={() => handleCopyQuery(msg.content)}
                     onExecute={() => handleExecute(msg.content)}
                     execLoading={execLoading}
-                    showMetabase={metabaseAvailable || Boolean(metabaseCardId)}
+                    showMetabase={
+                      metabaseAvailable ||
+                      Boolean(metabaseCardId) ||
+                      Boolean(metabaseCardUrl)
+                    }
                     metabaseLabel={
                       metabaseCardId ? "쿼리 관리하기" : "쿼리 추가"
                     }

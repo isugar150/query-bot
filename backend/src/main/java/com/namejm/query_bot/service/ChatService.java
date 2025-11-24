@@ -92,7 +92,8 @@ public class ChatService {
                 .toList();
 
         Long cardId = ensureValidMetabaseCard(session);
-        return new ChatResponse(session.getId(), reply, historyDto, cardId);
+        String cardUrl = metabaseService.buildCardUrl(cardId);
+        return new ChatResponse(session.getId(), reply, historyDto, cardId, cardUrl);
     }
 
     public Optional<ChatResponse> history(Long sessionId) {
@@ -100,7 +101,8 @@ public class ChatService {
                 .map(session -> {
                     List<ChatMessageDto> history = historyForSession(session);
                     Long cardId = ensureValidMetabaseCard(session);
-                    return new ChatResponse(sessionId, "", history, cardId);
+                    String cardUrl = metabaseService.buildCardUrl(cardId);
+                    return new ChatResponse(sessionId, "", history, cardId, cardUrl);
                 });
     }
 
@@ -113,19 +115,28 @@ public class ChatService {
     public Optional<ChatResponse> latestForDatabase(Long dbId) {
         return databaseService.findById(dbId)
                 .flatMap(chatSessionRepository::findFirstByDatabaseConnectionOrderByCreatedAtDesc)
-                .map(session -> new ChatResponse(
-                        session.getId(),
-                        "",
-                        historyForSession(session),
-                        ensureValidMetabaseCard(session)
-                ));
+                .map(session -> {
+                    Long cardId = ensureValidMetabaseCard(session);
+                    String cardUrl = metabaseService.buildCardUrl(cardId);
+                    return new ChatResponse(
+                            session.getId(),
+                            "",
+                            historyForSession(session),
+                            cardId,
+                            cardUrl
+                    );
+                });
     }
 
     public List<ChatSessionSummary> sessions(Long dbId) {
         DatabaseConnection db = databaseService.findById(dbId)
                 .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
         return chatSessionRepository.findByDatabaseConnectionOrderByCreatedAtDesc(db).stream()
-                .map(session -> new ChatSessionSummary(session.getId(), db.getId(), session.getTitle(), session.getCreatedAt(), ensureValidMetabaseCard(session)))
+                .map(session -> {
+                    Long cardId = ensureValidMetabaseCard(session);
+                    String cardUrl = metabaseService.buildCardUrl(cardId);
+                    return new ChatSessionSummary(session.getId(), db.getId(), session.getTitle(), session.getCreatedAt(), cardId, cardUrl);
+                })
                 .toList();
     }
 
@@ -133,7 +144,14 @@ public class ChatService {
         DatabaseConnection db = databaseService.findById(dbId)
                 .orElseThrow(() -> new IllegalArgumentException("데이터베이스 정보를 찾을 수 없습니다."));
         ChatSession created = createSession(db, title);
-        return new ChatSessionSummary(created.getId(), dbId, created.getTitle(), created.getCreatedAt(), created.getMetabaseCardId());
+        return new ChatSessionSummary(
+                created.getId(),
+                dbId,
+                created.getTitle(),
+                created.getCreatedAt(),
+                created.getMetabaseCardId(),
+                metabaseService.buildCardUrl(created.getMetabaseCardId())
+        );
     }
 
     private Long ensureValidMetabaseCard(ChatSession session) {

@@ -6,6 +6,7 @@ public record ChatResponse(
         Long sessionId,
         String reply,
         List<ChatMessageDto> history,
-        Long metabaseCardId
+        Long metabaseCardId,
+        String metabaseCardUrl
 ) {
 }

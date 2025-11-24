@@ -72,6 +72,7 @@ export type ChatResponse = {
   reply: string
   history: ChatMessage[]
   metabaseCardId?: number
+  metabaseCardUrl?: string
 }
 
 export type MetabaseStatus = {
@@ -95,4 +96,5 @@ export type ChatSession = {
   title: string
   createdAt: string
   metabaseCardId?: number
+  metabaseCardUrl?: string
 }
