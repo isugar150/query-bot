@@ -136,8 +136,6 @@ export function ChatPage({ user }: Props) {
     null,
   );
   const overwriteCancelRef = useRef<HTMLButtonElement | null>(null);
-  const metabaseBaseUrl = import.meta.env
-    .VITE_METABASE_URL as string | undefined;
 
   useEffect(() => {
     const fetchDbs = async () => {
@@ -450,20 +448,6 @@ export function ChatPage({ user }: Props) {
     );
   };
 
-  const buildMetabaseCardUrl = (cardId: number) => {
-    if (!metabaseBaseUrl) return null;
-    const trimmed = metabaseBaseUrl.replace(/\/+$/, "");
-    return `${trimmed}/question/${cardId}`;
-  };
-
-  const resolveMetabaseUrl = () => {
-    if (metabaseResult?.url) return metabaseResult.url;
-    if (metabaseCardId) {
-      return buildMetabaseCardUrl(metabaseCardId);
-    }
-    return null;
-  };
-
   const handleDbTest = async () => {
     setDbTesting(true);
     setDbTestResult(null);
@@ -550,24 +534,21 @@ export function ChatPage({ user }: Props) {
   };
 
   const openMetabaseFromManage = () => {
-    const url = resolveMetabaseUrl();
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
+    if (metabaseResult?.url) {
+      openMetabaseInNewTab();
       closeMetabaseManage();
       return;
     }
     toast({
       title: "Metabase 링크를 찾을 수 없습니다.",
-      description:
-        "세션에 저장된 카드가 있다면 VITE_METABASE_URL 설정을 확인하세요.",
+      description: "쿼리를 다시 전송하면 새 링크를 받을 수 있습니다.",
       status: "warning",
     });
   };
 
   const openMetabaseInNewTab = () => {
-    const url = resolveMetabaseUrl();
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    if (!metabaseResult?.url) return;
+    window.open(metabaseResult.url, "_blank", "noopener,noreferrer");
     closeMetabaseDialog();
   };
 
