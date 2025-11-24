@@ -362,10 +362,10 @@ export function ChatPage({ user }: Props) {
       });
       return;
     }
-    if (!metabaseAvailable && !metabaseCardId) {
+    if (!metabaseAvailable) {
       toast({
         title: "Metabase가 비활성화되었습니다.",
-        description: "유효한 API 키를 확인하세요.",
+        description: "환경변수 METABASE_ENABLED를 확인하세요.",
         status: "warning",
       });
       return;
@@ -388,10 +388,10 @@ export function ChatPage({ user }: Props) {
       });
       return;
     }
-    if (!metabaseAvailable && !metabaseCardId) {
+    if (!metabaseAvailable) {
       toast({
         title: "Metabase가 비활성화되었습니다.",
-        description: "유효한 API 키를 확인하세요.",
+        description: "환경변수 METABASE_ENABLED를 확인하세요.",
         status: "warning",
       });
       return;
@@ -567,6 +567,14 @@ export function ChatPage({ user }: Props) {
   };
 
   const openMetabaseFromManage = () => {
+    if (!metabaseAvailable) {
+      toast({
+        title: "Metabase가 비활성화되었습니다.",
+        description: "환경변수 METABASE_ENABLED를 확인하세요.",
+        status: "warning",
+      });
+      return;
+    }
     const url = resolveMetabaseUrl();
     if (url) {
       window.open(url, "_blank", "noopener,noreferrer");
@@ -581,6 +589,14 @@ export function ChatPage({ user }: Props) {
   };
 
   const openMetabaseInNewTab = () => {
+    if (!metabaseAvailable) {
+      toast({
+        title: "Metabase가 비활성화되었습니다.",
+        description: "환경변수 METABASE_ENABLED를 확인하세요.",
+        status: "warning",
+      });
+      return;
+    }
     const url = resolveMetabaseUrl();
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
@@ -685,12 +701,7 @@ export function ChatPage({ user }: Props) {
   return (
     <Stack spacing={6}>
       <Flex justify="space-between" align="center">
-        <Stack spacing={2}>
-          <Heading size="lg">Jm's SQL Query Bot</Heading>
-          <Text color="gray.300">
-            데이터베이스 구조를 이해하는 AI가 쿼리를 작성하는 봇
-          </Text>
-        </Stack>
+        <Heading size="lg">Jm's SQL Query Bot</Heading>
         <HStack spacing={3}>
           <Tag size="lg" variant="subtle" colorScheme="purple">
             <TagLabel>{user ?? "admin"}</TagLabel>
@@ -961,11 +972,7 @@ export function ChatPage({ user }: Props) {
                     onCopy={() => handleCopyQuery(msg.content)}
                     onExecute={() => handleExecute(msg.content)}
                     execLoading={execLoading}
-                    showMetabase={
-                      metabaseAvailable ||
-                      Boolean(metabaseCardId) ||
-                      Boolean(metabaseCardUrl)
-                    }
+                    showMetabase={metabaseAvailable}
                     metabaseLabel={
                       metabaseCardId ? "쿼리 관리하기" : "쿼리 추가"
                     }
