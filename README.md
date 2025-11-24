@@ -34,6 +34,10 @@ Query Bot은 스키마 정보를 사전에 학습한 AI가 사용자의 자연�
 - `JWT_SECRET` - JWT 서명용 시크릿
 - `OPENAI_API_KEY` - OpenAI API 키
 - `OPENAI_MODEL` - 모델 이름 (기본: `gpt-5-mini`)
+- `METABASE_URL` - Metabase 베이스 URL (예: `https://metabase.example.com`)
+- `METABASE_API_KEY` - Metabase API 키 (`x-api-key`로 전송)
+- `METABASE_DATABASE_KEY` - Metabase 대상 DB ID
+- `METABASE_COLLECTION_KEY` - Metabase 저장 컬렉션 ID
 
 SQLite 메타데이터 DB는 기본적으로 `./data/querybot.db`에 저장됩니다. 다른 경로를 쓰려면 `APP_DATA_DIR`를 환경 변수로 설정하세요.
 
@@ -64,6 +68,10 @@ nginx가 http://localhost:5213 으로 프론트엔드를 서빙하고 백엔드�
 - SQL 실행(읽기 전용): `POST /api/db/execute`
 - 챗 질문: `POST /api/chat/ask`
 - 대화 히스토리: `GET /api/chat/history/{sessionId}`
+- Metabase 카드 생성/업데이트: `POST /api/metabase/card`
+  - 요청: `{ sessionId, query, title? }`
+  - `sessionId`에 연결된 카드가 없으면 새 카드 생성 시 `title`을 사용(없으면 "새로운 쿼리"); 카드가 있으면 기존 카드 제목을 유지한 채 쿼리만 업데이트
+  - 서버는 `METABASE_URL`/`METABASE_API_KEY`/`METABASE_DATABASE_KEY`/`METABASE_COLLECTION_KEY` 설정이 유효할 때만 동작
 
 ## 기타 노트
 - 시크릿은 커밋하지 말고 `.env`나 환경 변수로 주입하세요.

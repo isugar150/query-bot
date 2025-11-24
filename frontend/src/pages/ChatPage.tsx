@@ -1,5 +1,4 @@
 import {
-  Badge,
   Box,
   Button,
   ButtonGroup,
@@ -29,11 +28,15 @@ import {
   MenuItem,
   MenuList,
 } from "@chakra-ui/react";
-import { FiArrowRight, FiCopy, FiPlus, FiRefreshCw } from "react-icons/fi";
+import { FiArrowRight, FiPlus, FiRefreshCw } from "react-icons/fi";
 import { LuChevronDown } from "react-icons/lu";
 import { useEffect, useRef, useState } from "react";
 import { ChatApi } from "../api/chat/chat";
 import { DbApi } from "../api/db/db";
+import { MetabaseApi } from "../api/metabase";
+import { ChatMessageItem } from "../components/ChatMessageItem";
+import { MetabaseConfirmModal } from "../components/MetabaseConfirmModal";
+import { MetabaseTitleModal } from "../components/MetabaseTitleModal";
 import { useAuthStore } from "../store/auth";
 import type {
   ChatMessage,
@@ -70,6 +73,7 @@ export function ChatPage({ user }: Props) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
+  const [metabaseCardId, setMetabaseCardId] = useState<number | undefined>();
 
   const { isOpen, onToggle, onClose } = useDisclosure();
   const [dbForm, setDbForm] = useState<DbConnectionRequest>(emptyDbForm);
@@ -83,11 +87,31 @@ export function ChatPage({ user }: Props) {
   } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const initialLoadRef = useRef(true);
+  const [metabaseAvailable, setMetabaseAvailable] = useState(false);
+  const [metabaseSending, setMetabaseSending] = useState(false);
+  const [metabaseResult, setMetabaseResult] = useState<{
+    id: number;
+    url: string;
+  } | null>(null);
   const {
     isOpen: isResultOpen,
     onOpen: openResult,
     onClose: closeResult,
   } = useDisclosure();
+  const {
+    isOpen: isMetabaseConfirmOpen,
+    onOpen: openMetabaseConfirm,
+    onClose: closeMetabaseConfirm,
+  } = useDisclosure();
+  const {
+    isOpen: isMetabaseTitleOpen,
+    onOpen: openMetabaseTitle,
+    onClose: closeMetabaseTitle,
+  } = useDisclosure();
+  const [metabaseTitle, setMetabaseTitle] = useState("");
+  const [pendingMetabaseSql, setPendingMetabaseSql] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const fetchDbs = async () => {
@@ -108,22 +132,29 @@ export function ChatPage({ user }: Props) {
       }
     };
     fetchDbs();
+
+    const checkMetabase = async () => {
+      try {
+        const res = await MetabaseApi.status();
+        setMetabaseAvailable(res.available);
+      } catch (err) {
+        setMetabaseAvailable(false);
+      }
+    };
+    checkMetabase();
   }, []);
 
   const loadSessions = async (dbId: number) => {
     try {
       const res = await ChatApi.sessions(dbId);
       setSessions(res);
-      if (res.length > 0) {
-        setSessionId(res[0].id);
-        await loadHistory(res[0].id);
-      } else {
-        setSessionId(undefined);
-        setMessages([]);
-      }
+      setSessionId(undefined);
+      setMetabaseCardId(undefined);
+      setMessages([]);
     } catch (err: unknown) {
       setSessions([]);
       setSessionId(undefined);
+      setMetabaseCardId(undefined);
       setMessages([]);
       toast({
         title: "세션 목록을 불러오지 못했습니다",
@@ -139,8 +170,10 @@ export function ChatPage({ user }: Props) {
       const res = await ChatApi.history(session);
       setSessionId(res.sessionId);
       setMessages(res.history);
+      setMetabaseCardId(res.metabaseCardId ?? undefined);
     } catch (err: unknown) {
       setMessages([]);
+      setMetabaseCardId(undefined);
       const message = extractErrorMessage(err);
       if (message && !/404/i.test(message)) {
         toast({
@@ -156,6 +189,10 @@ export function ChatPage({ user }: Props) {
     try {
       const res = await ChatApi.sessions(dbId);
       setSessions(res);
+      if (sessionId) {
+        const current = res.find((s) => s.id === sessionId);
+        setMetabaseCardId(current?.metabaseCardId ?? undefined);
+      }
     } catch (err: unknown) {
       toast({
         title: "세션 목록 갱신 실패",
@@ -198,6 +235,7 @@ export function ChatPage({ user }: Props) {
       });
       setMessages(res.history);
       setSessionId(res.sessionId);
+      setMetabaseCardId(res.metabaseCardId ?? undefined);
       if (isNewSession) {
         await refreshSessions(selectedDb);
       }
@@ -255,7 +293,11 @@ export function ChatPage({ user }: Props) {
     }
     try {
       await navigator.clipboard.writeText(sql);
-      toast({ title: "쿼리를 복사했습니다.", status: "success", duration: 1500 });
+      toast({
+        title: "쿼리를 복사했습니다.",
+        status: "success",
+        duration: 1500,
+      });
     } catch (err: unknown) {
       const message = extractErrorMessage(err);
       toast({
@@ -263,6 +305,95 @@ export function ChatPage({ user }: Props) {
         description: message || "클립보드 접근을 허용해주세요.",
         status: "error",
       });
+    }
+  };
+
+  const startSendToMetabase = (sql: string) => {
+    if (!sessionId) {
+      toast({
+        title: "세션이 없습니다.",
+        description: "AI 답변을 받은 후에 Metabase로 전송할 수 있습니다.",
+        status: "warning",
+      });
+      return;
+    }
+    if (!metabaseAvailable && !metabaseCardId) {
+      toast({
+        title: "Metabase가 비활성화되었습니다.",
+        description: "유효한 API 키를 확인하세요.",
+        status: "warning",
+      });
+      return;
+    }
+    setPendingMetabaseSql(sql);
+    if (metabaseCardId) {
+      // Update existing card without prompting for a new title.
+      void handleSendToMetabase(sql);
+    } else {
+      setMetabaseTitle("");
+      openMetabaseTitle();
+    }
+  };
+
+  const handleSendToMetabase = async (sql: string, title?: string) => {
+    if (!sessionId) {
+      toast({
+        title: "세션이 없습니다.",
+        description: "AI 답변을 받은 후에 Metabase로 전송할 수 있습니다.",
+        status: "warning",
+      });
+      return;
+    }
+    if (!metabaseAvailable && !metabaseCardId) {
+      toast({
+        title: "Metabase가 비활성화되었습니다.",
+        description: "유효한 API 키를 확인하세요.",
+        status: "warning",
+      });
+      return;
+    }
+    setMetabaseSending(true);
+    try {
+      const res = await MetabaseApi.sendQuery({
+        sessionId,
+        query: sql,
+        title: title && title.trim() ? title.trim() : undefined,
+      });
+      setMetabaseResult({ id: res.id, url: res.url });
+      setMetabaseCardId(res.id);
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId ? { ...s, metabaseCardId: res.id } : s,
+        ),
+      );
+      openMetabaseConfirm();
+      return true;
+    } catch (err: unknown) {
+      toast({
+        title: "Metabase 전송 실패",
+        description: extractErrorMessage(err),
+        status: "error",
+      });
+      return false;
+    } finally {
+      setMetabaseSending(false);
+    }
+  };
+
+  const handleSubmitMetabaseTitle = async () => {
+    if (!pendingMetabaseSql) return;
+    if (!metabaseTitle.trim()) {
+      window.alert("제목을 입력해주세요.");
+      return;
+    }
+    const ok = await handleSendToMetabase(
+      pendingMetabaseSql,
+      metabaseTitle || undefined,
+    );
+    if (ok) {
+      closeMetabaseTitle();
+      setPendingMetabaseSql(null);
+      setMetabaseTitle("");
     }
   };
 
@@ -341,8 +472,9 @@ export function ChatPage({ user }: Props) {
     setDbForm({ ...dbForm, ...patch });
 
   useEffect(() => {
+    if (messages.length === 0) return;
     if (initialLoadRef.current) {
-      if (messages.length === 0) return;
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
       initialLoadRef.current = false;
       return;
     }
@@ -350,6 +482,23 @@ export function ChatPage({ user }: Props) {
     if (lastMessage?.role !== "ASSISTANT") return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const closeMetabaseDialog = () => {
+    closeMetabaseConfirm();
+    setMetabaseResult(null);
+  };
+
+  const cancelMetabaseTitle = () => {
+    closeMetabaseTitle();
+    setPendingMetabaseSql(null);
+    setMetabaseTitle("");
+  };
+
+  const openMetabaseInNewTab = () => {
+    if (!metabaseResult?.url) return;
+    window.open(metabaseResult.url, "_blank", "noopener,noreferrer");
+    closeMetabaseDialog();
+  };
 
   const handleDbDelete = async () => {
     if (!selectedDb) {
@@ -403,6 +552,7 @@ export function ChatPage({ user }: Props) {
       return;
     }
     setSessionId(undefined);
+    setMetabaseCardId(undefined);
     setMessages([]);
   };
 
@@ -423,9 +573,11 @@ export function ChatPage({ user }: Props) {
       if (remaining[0]) {
         const nextId = remaining[0].id;
         setSessionId(nextId);
+        setMetabaseCardId(remaining[0].metabaseCardId ?? undefined);
         await loadHistory(nextId);
       } else {
         setSessionId(undefined);
+        setMetabaseCardId(undefined);
         setMessages([]);
       }
       toast({ title: "세션 삭제 완료", status: "success" });
@@ -702,54 +854,26 @@ export function ChatPage({ user }: Props) {
                 const isAssistant = msg.role === "ASSISTANT";
                 const isRunnable = isReadOnlyQuery(msg.content);
                 return (
-                  <Box
-                    key={idx}
-                    bg={msg.role === "USER" ? "teal.900" : "gray.800"}
-                    borderRadius="md"
-                    p={3}
-                    borderWidth="1px"
-                    borderColor="whiteAlpha.200"
-                  >
-                    <HStack justify="space-between" mb={2}>
-                      <Badge
-                        colorScheme={msg.role === "USER" ? "teal" : "purple"}
-                      >
-                        {msg.role === "USER" ? "나" : "AI"}
-                      </Badge>
-                      <HStack spacing={2}>
-                        {isAssistant && isRunnable && (
-                          <HStack spacing={1}>
-                            <Button
-                              size="xs"
-                              variant="outline"
-                              leftIcon={<FiCopy />}
-                              onClick={() => handleCopyQuery(msg.content)}
-                            >
-                              쿼리 복사
-                            </Button>
-                            <Button
-                              size="xs"
-                              variant="outline"
-                              isLoading={execLoading}
-                              onClick={() => handleExecute(msg.content)}
-                            >
-                              실행 (최대 100건)
-                            </Button>
-                          </HStack>
-                        )}
-                        <Text fontSize="xs" color="gray.400">
-                          {formatDate(msg.createdAt)}
-                        </Text>
-                      </HStack>
-                    </HStack>
-                    <Text
-                      whiteSpace="pre-wrap"
-                      fontFamily={isAssistant ? "mono" : "body"}
-                      wordBreak="break-word"
-                    >
-                      {msg.content}
-                    </Text>
-                  </Box>
+                  <ChatMessageItem
+                    key={`${msg.createdAt}-${idx}`}
+                    message={msg}
+                    timestamp={formatDate(msg.createdAt)}
+                    isAssistant={isAssistant}
+                    isRunnable={isRunnable}
+                    onCopy={() => handleCopyQuery(msg.content)}
+                    onExecute={() => handleExecute(msg.content)}
+                    execLoading={execLoading}
+                    showMetabase={metabaseAvailable || Boolean(metabaseCardId)}
+                    metabaseLabel={
+                      metabaseCardId ? "쿼리 업데이트하기" : "쿼리 추가"
+                    }
+                    metabaseLoading={metabaseSending}
+                    onMetabase={
+                      isAssistant && isRunnable
+                        ? () => startSendToMetabase(msg.content)
+                        : undefined
+                    }
+                  />
                 );
               })}
               {aiTyping && (
@@ -805,6 +929,21 @@ export function ChatPage({ user }: Props) {
         onClose={closeResult}
         columns={execResult?.columns ?? []}
         rows={execResult?.rows ?? []}
+      />
+
+      <MetabaseTitleModal
+        isOpen={isMetabaseTitleOpen}
+        onClose={cancelMetabaseTitle}
+        title={metabaseTitle}
+        onTitleChange={setMetabaseTitle}
+        onSubmit={handleSubmitMetabaseTitle}
+        isSubmitting={metabaseSending}
+      />
+
+      <MetabaseConfirmModal
+        isOpen={isMetabaseConfirmOpen}
+        onClose={closeMetabaseDialog}
+        onConfirm={openMetabaseInNewTab}
       />
     </Stack>
   );

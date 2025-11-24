@@ -33,6 +33,8 @@ public class ChatSession {
 
     private Long systemPromptDatabaseId;
 
+    private Long metabaseCardId;
+
     @PrePersist
     public void onCreate() {
         createdAt = LocalDateTime.now();
@@ -76,5 +78,13 @@ public class ChatSession {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public Long getMetabaseCardId() {
+        return metabaseCardId;
+    }
+
+    public void setMetabaseCardId(Long metabaseCardId) {
+        this.metabaseCardId = metabaseCardId;
     }
 }

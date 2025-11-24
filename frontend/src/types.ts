@@ -71,6 +71,17 @@ export type ChatResponse = {
   sessionId: number
   reply: string
   history: ChatMessage[]
+  metabaseCardId?: number
+}
+
+export type MetabaseStatus = {
+  available: boolean
+}
+
+export type MetabaseQuestionResponse = {
+  id: number
+  name: string
+  url: string
 }
 
 export type ExecuteResponse = {
@@ -83,4 +94,5 @@ export type ChatSession = {
   dbId: number
   title: string
   createdAt: string
+  metabaseCardId?: number
 }

@@ -5,6 +5,7 @@ import java.util.List;
 public record ChatResponse(
         Long sessionId,
         String reply,
-        List<ChatMessageDto> history
+        List<ChatMessageDto> history,
+        Long metabaseCardId
 ) {
 }

@@ -9,6 +9,10 @@ docker run -d \
   -p 5213:5213 \
   -e JWT_SECRET=my-secret-key \
   -e OPENAI_API_KEY=my-openai-api-key \
+  -e METABASE_URL= \
+  -e METABASE_API_KEY=\
+  -e METABASE_DATABASE_KEY=\
+  -e METABASE_COLLECTION_KEY=\
   -e APP_DATA_DIR=/app/data \
   -e SERVER_PORT=8080 \
   -v $(pwd)/data:/app/data \

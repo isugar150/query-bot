@@ -7,6 +7,7 @@ public class AppProperties {
 
     private final Security security = new Security();
     private final OpenAi openai = new OpenAi();
+    private final Metabase metabase = new Metabase();
     private String dataDir = "./data";
 
     public Security getSecurity() {
@@ -15,6 +16,10 @@ public class AppProperties {
 
     public OpenAi getOpenai() {
         return openai;
+    }
+
+    public Metabase getMetabase() {
+        return metabase;
     }
 
     public String getDataDir() {
@@ -76,6 +81,54 @@ public class AppProperties {
 
         public void setModel(String model) {
             this.model = model;
+        }
+    }
+
+    public static class Metabase {
+        private String url;
+        private String apiKey;
+        private Long databaseKey;
+        private Long collectionKey;
+        private String deviceId;
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
+        public String getApiKey() {
+            return apiKey;
+        }
+
+        public void setApiKey(String apiKey) {
+            this.apiKey = apiKey;
+        }
+
+        public Long getDatabaseKey() {
+            return databaseKey;
+        }
+
+        public void setDatabaseKey(Long databaseKey) {
+            this.databaseKey = databaseKey;
+        }
+
+        public Long getCollectionKey() {
+            return collectionKey;
+        }
+
+        public void setCollectionKey(Long collectionKey) {
+            this.collectionKey = collectionKey;
+        }
+
+        public String getDeviceId() {
+            return deviceId;
+        }
+
+        public void setDeviceId(String deviceId) {
+            this.deviceId = deviceId;
         }
     }
 }
