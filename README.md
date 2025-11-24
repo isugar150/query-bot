@@ -6,7 +6,7 @@ Query Bot은 스키마 정보를 사전에 학습한 AI가 사용자의 자연�
 개발자가 아니어도 CRM 담당자, 마케터, 기획자 등 누구나 복잡한 테이블 구조나 JOIN 규칙을 몰라도 원하는 데이터를 정확하고 빠르게 조회할 수 있습니다.
 
 ## 스크린샷
-<img width="1251" height="910" alt="517218782-0418540c-e610-4054-8add-f002f758f0d2" src="https://github.com/user-attachments/assets/365376f4-ac2c-48c7-99fb-7fb9941b362d" />
+<img width="993" height="901" alt="스크린샷 2025-11-24 163126" src="https://github.com/user-attachments/assets/710806f6-df87-4b5d-bb33-c81b39d0418f" />
 
 ## 주요 기술 스택
 - 백엔드: Java 17, Spring Boot, JPA (SQLite 메타데이터), REST API
