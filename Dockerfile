@@ -1,4 +1,4 @@
-FROM gradle:8.10-jdk17 AS backend-build
+FROM gradle:8.14.3-jdk17 AS backend-build
 WORKDIR /app/backend
 COPY backend/gradle ./gradle
 COPY backend/gradlew ./gradlew
