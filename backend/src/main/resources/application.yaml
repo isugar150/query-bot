@@ -27,3 +27,8 @@ app:
   openai:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-5-mini}
+  metabase:
+    url: ${METABASE_URL:}
+    api-key: ${METABASE_API_KEY:}
+    database-key: ${METABASE_DATABASE_KEY:}
+    collection-key: ${METABASE_COLLECTION_KEY:}
