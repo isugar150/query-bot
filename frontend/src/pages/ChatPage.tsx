@@ -86,7 +86,7 @@ export function ChatPage({ user }: Props) {
     columns: string[];
     rows: (string | number | boolean | null)[][];
   } | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const initialLoadRef = useRef(true);
   const [metabaseAvailable, setMetabaseAvailable] = useState(false);
   const [metabaseSending, setMetabaseSending] = useState(false);
@@ -472,16 +472,22 @@ export function ChatPage({ user }: Props) {
   const updateDbForm = (patch: Partial<DbConnectionRequest>) =>
     setDbForm({ ...dbForm, ...patch });
 
+  const scrollMessagesToBottom = (behavior: ScrollBehavior) => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior });
+  };
+
   useEffect(() => {
     if (messages.length === 0) return;
     if (initialLoadRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      scrollMessagesToBottom("auto");
       initialLoadRef.current = false;
       return;
     }
     const lastMessage = messages[messages.length - 1];
     if (lastMessage?.role !== "ASSISTANT") return;
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollMessagesToBottom("smooth");
   }, [messages]);
 
   const closeMetabaseDialog = () => {
@@ -850,7 +856,13 @@ export function ChatPage({ user }: Props) {
                 동기화하십시오.
               </Text>
             </Box>
-            <Stack spacing={4} maxH="50vh" overflowY="auto" pr={2}>
+            <Stack
+              spacing={4}
+              maxH="50vh"
+              overflowY="auto"
+              pr={2}
+              ref={messagesContainerRef}
+            >
               {messages.map((msg, idx) => {
                 const isAssistant = msg.role === "ASSISTANT";
                 const isRunnable = isReadOnlyQuery(msg.content);
@@ -894,7 +906,6 @@ export function ChatPage({ user }: Props) {
                   <Text color="gray.300">AI가 답변을 생성하고 있습니다...</Text>
                 </Box>
               )}
-              <Box ref={messagesEndRef} />
             </Stack>
             <Divider />
             <Textarea
