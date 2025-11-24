@@ -15,6 +15,7 @@ import {
   Input,
   Select,
   Stack,
+  Badge,
   Tag,
   TagLabel,
   Text,
