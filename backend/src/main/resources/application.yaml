@@ -28,6 +28,7 @@ app:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-5-mini}
   metabase:
+    enabled: ${METABASE_ENABLED:true}
     url: ${METABASE_URL:}
     api-key: ${METABASE_API_KEY:}
     database-key: ${METABASE_DATABASE_KEY:}

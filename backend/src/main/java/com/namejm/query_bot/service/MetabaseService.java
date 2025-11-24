@@ -97,6 +97,9 @@ public class MetabaseService {
 
     private boolean isConfigured() {
         AppProperties.Metabase meta = appProperties.getMetabase();
+        if (!meta.isEnabled()) {
+            return false;
+        }
         return meta.getUrl() != null && !meta.getUrl().isBlank()
                 && meta.getApiKey() != null && !meta.getApiKey().isBlank()
                 && meta.getDatabaseKey() != null
@@ -200,6 +203,9 @@ public class MetabaseService {
 
     public String buildCardUrl(Long cardId) {
         if (cardId == null) {
+            return null;
+        }
+        if (!appProperties.getMetabase().isEnabled()) {
             return null;
         }
         String base = trimTrailingSlash(appProperties.getMetabase().getUrl());

@@ -85,11 +85,20 @@ public class AppProperties {
     }
 
     public static class Metabase {
+        private boolean enabled = true;
         private String url;
         private String apiKey;
         private Long databaseKey;
         private Long collectionKey;
         private String deviceId;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
 
         public String getUrl() {
             return url;
