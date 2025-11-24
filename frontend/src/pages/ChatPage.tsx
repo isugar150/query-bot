@@ -82,6 +82,7 @@ export function ChatPage({ user }: Props) {
     rows: (string | number | boolean | null)[][];
   } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const initialLoadRef = useRef(true);
   const {
     isOpen: isResultOpen,
     onOpen: openResult,
@@ -133,6 +134,7 @@ export function ChatPage({ user }: Props) {
   };
 
   const loadHistory = async (session: number) => {
+    initialLoadRef.current = true;
     try {
       const res = await ChatApi.history(session);
       setSessionId(res.sessionId);
@@ -339,8 +341,15 @@ export function ChatPage({ user }: Props) {
     setDbForm({ ...dbForm, ...patch });
 
   useEffect(() => {
+    if (initialLoadRef.current) {
+      if (messages.length === 0) return;
+      initialLoadRef.current = false;
+      return;
+    }
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role !== "ASSISTANT") return;
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, aiTyping]);
+  }, [messages]);
 
   const handleDbDelete = async () => {
     if (!selectedDb) {
