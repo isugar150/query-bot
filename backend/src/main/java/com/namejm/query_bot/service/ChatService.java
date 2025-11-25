@@ -15,6 +15,7 @@ import com.namejm.query_bot.repository.ChatMessageRepository;
 import com.namejm.query_bot.repository.ChatSessionRepository;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,8 @@ public class ChatService {
         userMessage.setSession(session);
         userMessage.setRole(MessageRole.USER);
         userMessage.setContent(request.message());
+        LocalDateTime askedAt = LocalDateTime.now();
+        session.setLastQuestionAt(askedAt);
 
         // Always rebuild the system prompt from the selected database to avoid stale schemas leaking across DBs.
         SchemaOverview schema = databaseService.fetchLiveSchema(database);

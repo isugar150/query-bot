@@ -951,6 +951,9 @@ export function ChatPage({ user }: Props) {
                 데이터베이스 정보가 변경된 경우 우측 ‘더보기’에서
                 동기화하십시오.
               </Text>
+              <Text color="gray.400" fontSize="xs" mt={2}>
+                대화 내용은 마지막 질문 후 30일이 지나면 자동으로 삭제됩니다.
+              </Text>
             </Box>
             <Stack
               spacing={4}

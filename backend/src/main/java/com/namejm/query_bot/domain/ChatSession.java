@@ -28,6 +28,8 @@ public class ChatSession {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    private LocalDateTime lastQuestionAt;
+
     @Column(columnDefinition = "TEXT")
     private String systemPrompt;
 
@@ -38,6 +40,9 @@ public class ChatSession {
     @PrePersist
     public void onCreate() {
         createdAt = LocalDateTime.now();
+        if (lastQuestionAt == null) {
+            lastQuestionAt = createdAt;
+        }
     }
 
     public Long getId() {
@@ -86,5 +91,13 @@ public class ChatSession {
 
     public void setMetabaseCardId(Long metabaseCardId) {
         this.metabaseCardId = metabaseCardId;
+    }
+
+    public LocalDateTime getLastQuestionAt() {
+        return lastQuestionAt;
+    }
+
+    public void setLastQuestionAt(LocalDateTime lastQuestionAt) {
+        this.lastQuestionAt = lastQuestionAt;
     }
 }
