@@ -43,26 +43,27 @@ public class QueryExecutionService {
             throw new IllegalArgumentException("데이터 조회 쿼리만 실행할 수 있습니다.");
         }
 
-        String wrapped = "SELECT * FROM (" + trimmed + ") AS qbot_sub LIMIT 100";
-
         try (Connection connection = openConnection(db);
-             Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(wrapped)) {
-            ResultSetMetaData meta = rs.getMetaData();
-            int columnCount = meta.getColumnCount();
-            List<String> columns = new ArrayList<>();
-            for (int i = 1; i <= columnCount; i++) {
-                columns.add(meta.getColumnLabel(i));
-            }
-            List<List<Object>> rows = new ArrayList<>();
-            while (rs.next()) {
-                List<Object> row = new ArrayList<>();
+             Statement stmt = connection.createStatement()) {
+            // Limit result size without re-wrapping the query, so ORDER BY stays intact
+            stmt.setMaxRows(100);
+            try (ResultSet rs = stmt.executeQuery(trimmed)) {
+                ResultSetMetaData meta = rs.getMetaData();
+                int columnCount = meta.getColumnCount();
+                List<String> columns = new ArrayList<>();
                 for (int i = 1; i <= columnCount; i++) {
-                    row.add(rs.getObject(i));
+                    columns.add(meta.getColumnLabel(i));
                 }
-                rows.add(row);
+                List<List<Object>> rows = new ArrayList<>();
+                while (rs.next()) {
+                    List<Object> row = new ArrayList<>();
+                    for (int i = 1; i <= columnCount; i++) {
+                        row.add(rs.getObject(i));
+                    }
+                    rows.add(row);
+                }
+                return new ExecuteResponse(columns, rows);
             }
-            return new ExecuteResponse(columns, rows);
         }
     }
 
