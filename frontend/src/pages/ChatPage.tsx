@@ -20,6 +20,11 @@ import {
   TagLabel,
   Text,
   Textarea,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverArrow,
+  PopoverBody,
   useDisclosure,
   useToast,
   VStack,
@@ -60,6 +65,7 @@ import type {
 } from "../types";
 import { ResultModal } from "../components/ResultModal";
 import { extractErrorMessage } from "../utils/error";
+import { QuestionOutlineIcon } from "@chakra-ui/icons";
 
 const emptyDbForm: DbConnectionRequest = {
   name: "",
@@ -701,7 +707,37 @@ export function ChatPage({ user }: Props) {
   return (
     <Stack spacing={6}>
       <Flex justify="space-between" align="center">
-        <Heading size="lg">Jm's SQL Query Bot</Heading>
+        <HStack spacing={2}>
+          <Heading size="lg">Jm's SQL Query Bot</Heading>
+          <Popover trigger="hover" placement="right-start" isLazy>
+            <PopoverTrigger>
+              <IconButton
+                aria-label="도움말"
+                icon={<QuestionOutlineIcon />}
+                size="sm"
+                variant="solid"
+                colorScheme="teal"
+                opacity={0.9}
+                _hover={{ opacity: 1 }}
+              />
+            </PopoverTrigger>
+            <PopoverContent
+              bg="gray.800"
+              color="gray.50"
+              borderColor="whiteAlpha.300"
+              maxW="340px"
+              _focus={{ boxShadow: "lg" }}
+            >
+              <PopoverArrow bg="gray.800" />
+              <PopoverBody fontSize="sm" lineHeight="1.5">
+                새로운 질문은 ‘새 대화’로 시작하고 DB 정보가 바뀌면 ‘더보기’에서
+                스키마를 동기화하세요.
+                <br />
+                마지막 질문 후 30일이 지나면 대화가 자동 삭제됩니다.
+              </PopoverBody>
+            </PopoverContent>
+          </Popover>
+        </HStack>
         <HStack spacing={3}>
           <Tag size="lg" variant="subtle" colorScheme="purple">
             <TagLabel>{user ?? "admin"}</TagLabel>
@@ -945,16 +981,6 @@ export function ChatPage({ user }: Props) {
       >
         <CardBody>
           <VStack align="stretch" spacing={4}>
-            <Box bg="blackAlpha.500" borderRadius="md" p={3}>
-              <Text color="gray.200" fontSize="sm">
-                새로운 질문은 상단의 ‘새 대화’ 버튼을 클릭해 시작하며,
-                데이터베이스 정보가 변경된 경우 우측 ‘더보기’에서
-                동기화하십시오.
-              </Text>
-              <Text color="gray.400" fontSize="xs" mt={2}>
-                대화 내용은 마지막 질문 후 30일이 지나면 자동으로 삭제됩니다.
-              </Text>
-            </Box>
             <Stack
               spacing={4}
               maxH="50vh"
