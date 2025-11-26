@@ -547,8 +547,6 @@ export function ChatPage({ user }: Props) {
       initialLoadRef.current = false;
       return;
     }
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role !== "ASSISTANT") return;
     scrollMessagesToBottom("smooth");
   }, [messages]);
 
