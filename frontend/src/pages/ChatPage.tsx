@@ -247,6 +247,7 @@ export function ChatPage({ user }: Props) {
   };
 
   const handleSend = async () => {
+    if (sending) return;
     if (!input.trim() || !selectedDb) {
       toast({ title: "데이터베이스와 질문을 확인하세요.", status: "warning" });
       return;
@@ -645,7 +646,10 @@ export function ChatPage({ user }: Props) {
       const res = await DbApi.refresh(selectedDb);
       setDatabases((prev) => prev.map((db) => (db.id === res.id ? res : db)));
       toast({ title: "DB 스키마 갱신 완료", status: "success" });
-      await loadHistory(res.id);
+      await refreshSessions(res.id);
+      if (sessionId) {
+        await loadHistory(sessionId);
+      }
     } catch (err: unknown) {
       toast({
         title: "갱신 실패",
@@ -1037,6 +1041,8 @@ export function ChatPage({ user }: Props) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
+                if (sending) return;
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   handleSend();
