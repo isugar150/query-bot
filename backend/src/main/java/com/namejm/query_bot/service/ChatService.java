@@ -69,13 +69,11 @@ public class ChatService {
         userMessage.setRole(MessageRole.USER);
         userMessage.setContent(request.message());
         LocalDateTime askedAt = LocalDateTime.now();
+        LocalDateTime lastAskedAt = session.getLastQuestionAt();
         session.setLastQuestionAt(askedAt);
 
-        // Always rebuild the system prompt from the selected database to avoid stale schemas leaking across DBs.
-        SchemaOverview schema = databaseService.fetchLiveSchema(database);
-        String systemPrompt = buildSystemPrompt(schema);
-        session.setSystemPrompt(systemPrompt);
-        session.setSystemPromptDatabaseId(database.getId());
+        // Reuse the cached system prompt when possible to avoid re-sending the full schema on every turn.
+        String systemPrompt = resolveSystemPrompt(session, database, lastAskedAt);
         chatSessionRepository.save(session);
 
         List<ChatMessage> promptHistory = new ArrayList<>(priorHistory);
@@ -218,6 +216,27 @@ public class ChatService {
             return buildTitle("새 세션", dbName);
         }
         return trimmed.length() > 60 ? trimmed.substring(0, 60) + "..." : trimmed;
+    }
+
+    private String resolveSystemPrompt(ChatSession session, DatabaseConnection database, LocalDateTime lastAskedAt) throws Exception {
+        boolean needsRebuild = session.getSystemPrompt() == null
+                || session.getSystemPromptDatabaseId() == null
+                || !session.getSystemPromptDatabaseId().equals(database.getId());
+
+        LocalDateTime schemaUpdatedAt = database.getSchemaUpdatedAt();
+        LocalDateTime comparedAt = lastAskedAt != null ? lastAskedAt : session.getCreatedAt();
+        if (!needsRebuild && schemaUpdatedAt != null && comparedAt != null && comparedAt.isBefore(schemaUpdatedAt)) {
+            needsRebuild = true;
+        }
+
+        if (needsRebuild) {
+            SchemaOverview schema = loadSchema(database);
+            String systemPrompt = buildSystemPrompt(schema);
+            session.setSystemPrompt(systemPrompt);
+            session.setSystemPromptDatabaseId(database.getId());
+        }
+
+        return session.getSystemPrompt();
     }
 
     private SchemaOverview loadSchema(DatabaseConnection databaseConnection) throws Exception {
